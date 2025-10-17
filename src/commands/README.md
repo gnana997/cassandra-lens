@@ -62,6 +62,57 @@ Commands are actions that users can trigger from:
 - Reloads connection list from storage
 - Updates connection status indicators
 
+---
+
+### SchemaCommands
+- **File**: `schemaCommands.ts`
+- **Purpose**: Handles schema-related context menu actions
+- **Dependencies**: ConnectionTreeProvider (for refresh), SchemaService (for metadata queries)
+
+#### Commands Implemented:
+
+**`cassandra-lens.copyKeyspaceName`**
+- Copies keyspace name to clipboard
+- Shows confirmation notification
+- Triggered from keyspace context menu
+
+**`cassandra-lens.copyTableName`**
+- Copies qualified table name (`keyspace.table`) to clipboard
+- Useful for CQL queries
+- Triggered from table context menu
+
+**`cassandra-lens.copyColumnName`**
+- Copies column name to clipboard
+- Triggered from column context menu
+
+**`cassandra-lens.copyColumnPath`**
+- Copies full column path (`keyspace.table.column`) to clipboard
+- Useful for documentation and debugging
+- Triggered from column context menu
+
+**`cassandra-lens.browseTableData`**
+- Generates `SELECT * FROM keyspace.table LIMIT 100;` query
+- Opens in new untitled document with SQL syntax highlighting
+- Ready for Week 3 query execution feature
+- Triggered from table context menu
+
+**`cassandra-lens.describeTable`**
+- Queries SchemaService for complete table schema
+- Displays table structure in markdown format:
+  - Partition Keys with descriptions
+  - Clustering Keys with descriptions
+  - Static Columns
+  - Regular Columns
+  - Approximate CREATE TABLE statement
+- Opens in new document for easy reference
+- Triggered from table context menu
+
+**`cassandra-lens.refreshNode`**
+- Refreshes a specific schema node (keyspace, table, or column parent)
+- Clears appropriate cache level (granular cache clearing)
+- Triggered from context menu on any schema item
+- More efficient than refreshing entire tree
+
 ## Command Registration
 
 Commands are registered in `extension.ts` during activation:
@@ -91,6 +142,14 @@ context.subscriptions.push(
     }
   )
 );
+
+// Example: Register schema command (from context menu)
+context.subscriptions.push(
+  vscode.commands.registerCommand(
+    'cassandra-lens.copyTableName',
+    (item) => schemaCommands.copyTableName(item)
+  )
+);
 ```
 
 ## Best Practices
@@ -100,6 +159,8 @@ context.subscriptions.push(
 - **Provide feedback**: Use progress indicators for long operations (vscode.window.withProgress)
 - **Validate input**: Check for required state (active connection, etc.) before proceeding
 - **Dual-mode support**: Commands should work from both context menus (with arguments) and command palette (without arguments)
+- **Clipboard operations**: Always show confirmation after copying to clipboard
+- **Schema context**: Commands operating on schema items receive TreeItem objects with keyspace/table/column info
 
 ## Command Naming Convention
 
@@ -108,12 +169,29 @@ Follow VS Code conventions:
 - Use camelCase for action and target
 - Examples:
   - `cassandra-lens.addConnection` ✓
+  - `cassandra-lens.copyKeyspaceName` ✓
   - `cassandra-lens.connection-add` ✗ (use camelCase, not kebab-case)
+
+## Context Menu Organization
+
+Schema commands are organized in context menu groups:
+
+**Keyspace context menu:**
+- Group `clipboard`: Copy Name
+- Group `actions`: Refresh
+
+**Table context menu:**
+- Group `actions`: Browse Data, Describe Table, Refresh
+- Group `clipboard`: Copy Name
+
+**Column context menu:**
+- Group `clipboard`: Copy Name, Copy Path
 
 ## Future Enhancements
 
 Future command handlers may include:
-- **SchemaCommands** - Create/drop keyspaces, tables, indexes
+- **DDL Commands** - Create/drop keyspaces, tables, indexes
 - **QueryCommands** - New query, execute, format, export results
 - **TemplateCommands** - Save/load/manage query templates
 - **DevToolCommands** - Generate token range queries, analyze partition keys
+- **DataCommands** - Insert, update, delete rows from data browser

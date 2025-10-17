@@ -61,6 +61,36 @@ Services encapsulate core functionality and business logic. They handle data pro
   - Passwords stored in VS Code Secret Storage API
   - Never stores passwords in settings.json
 
+### SchemaService
+- **File**: `schemaService.ts`
+- **Purpose**: Queries Cassandra system schema tables to discover keyspaces, tables, and columns
+- **Responsibilities**:
+  - Query `system_schema.keyspaces`, `system_schema.tables`, `system_schema.columns`
+  - Cache schema metadata to avoid redundant queries
+  - Filter system keyspaces (configurable)
+  - Provide granular cache clearing for refresh operations
+  - Sort results alphabetically (keyspaces, tables) and by position (columns)
+- **Key Methods**:
+  - `getKeyspaces(filterSystem: boolean): Promise<KeyspaceInfo[]>`
+  - `getTables(keyspace: string): Promise<TableInfo[]>`
+  - `getColumns(keyspace: string, table: string): Promise<ColumnInfo[]>`
+  - `clearCache(): void` - Clears all cached data
+  - `clearKeyspaceCache(keyspace: string): void` - Clears specific keyspace
+  - `clearTableCache(keyspace: string, table: string): void` - Clears specific table
+- **Caching Strategy**:
+  - **Key Format**: Map with namespaced keys
+    - `"keyspaces"` - All keyspaces
+    - `"tables:{keyspace}"` - Tables in a keyspace
+    - `"columns:{keyspace}:{table}"` - Columns in a table
+  - **Benefits**: Avoids repeated system table queries, improves tree view performance
+  - **Refresh**: Individual nodes can refresh without clearing entire cache
+- **System Keyspace Filtering**:
+  - Filters out: `system`, `system_schema`, `system_auth`, `system_distributed`, `system_traces`, `system_virtual_schema`
+  - Configurable via `filterSystem` parameter
+- **Column Metadata**:
+  - Returns: name, type, kind (partition_key, clustering, regular, static), position
+  - Sorted by position to maintain schema order
+
 ## Design Principles
 
 - **Single Responsibility**: Each service has one clear purpose
@@ -68,6 +98,7 @@ Services encapsulate core functionality and business logic. They handle data pro
 - **Loose Coupling**: Services communicate via interfaces, not concrete implementations
 - **Dependency Injection**: Services receive dependencies via constructor for flexibility
 - **Event-Driven**: ConnectionManager emits events for reactive UI updates
+- **Performance**: SchemaService uses caching to minimize Cassandra queries
 
 ## Usage Pattern
 
@@ -78,6 +109,7 @@ Services are typically instantiated in `extension.ts` and injected into provider
 const cassandraClient = new CassandraClient();
 const connectionManager = new ConnectionManager(cassandraClient);
 const connectionStorage = new ConnectionStorage(context);
+const schemaService = new SchemaService(cassandraClient);
 
 // Inject into commands
 const connectionCommands = new ConnectionCommands(
@@ -87,16 +119,40 @@ const connectionCommands = new ConnectionCommands(
   context.extensionUri
 );
 
+const schemaCommands = new SchemaCommands(
+  connectionTreeProvider,
+  schemaService
+);
+
 // Inject into providers
 const connectionTreeProvider = new ConnectionTreeProvider(
   connectionStorage,
-  connectionManager
+  connectionManager,
+  schemaService  // Now includes schema discovery
 );
+```
+
+## Service Interactions
+
+```
+┌─────────────────┐     uses      ┌──────────────────┐
+│ ConnectionMgr   │──────────────▶│ CassandraClient  │
+└─────────────────┘                └──────────────────┘
+        │                                    ▲
+        │ emits events                       │
+        │                                    │ uses
+        ▼                                    │
+┌─────────────────┐               ┌──────────────────┐
+│ ConnectionTree  │               │ SchemaService    │
+│ Provider        │◀──────────────┤                  │
+└─────────────────┘   queries     └──────────────────┘
+                      schema
 ```
 
 ## Future Enhancements
 
 Future services may include:
-- **SchemaService** - Query Cassandra system tables to discover schema
 - **QueryExecutor** - Handle CQL query execution with result formatting
 - **TemplateService** - Manage query templates and snippets
+- **ExportService** - Export query results to CSV, JSON, etc.
+- **MetricsService** - Track and display cluster metrics
