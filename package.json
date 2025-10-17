@@ -1,0 +1,88 @@
+{
+  "name": "cassandra-lens",
+  "displayName": "CassandraLens",
+  "description": "Apache Cassandra database management and development tool for VS Code",
+  "version": "0.1.0",
+  "publisher": "cassandra-lens",
+  "engines": {
+    "vscode": "^1.105.0"
+  },
+  "categories": [
+    "Data Science",
+    "Other"
+  ],
+  "keywords": [
+    "cassandra",
+    "apache cassandra",
+    "database",
+    "cql",
+    "nosql"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cassandra-lens.addConnection",
+        "title": "CassandraLens: Add Connection",
+        "icon": "$(add)"
+      },
+      {
+        "command": "cassandra-lens.switchConnection",
+        "title": "CassandraLens: Switch Connection",
+        "icon": "$(database)"
+      },
+      {
+        "command": "cassandra-lens.deleteConnection",
+        "title": "CassandraLens: Delete Connection",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "cassandra-lens.disconnect",
+        "title": "CassandraLens: Disconnect",
+        "icon": "$(debug-disconnect)"
+      }
+    ],
+    "configuration": {
+      "title": "CassandraLens",
+      "properties": {
+        "cassandraLens.connections": {
+          "type": "array",
+          "default": [],
+          "description": "Saved Cassandra connection profiles (passwords stored securely in Secret Storage)",
+          "scope": "window"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.105.0",
+    "@typescript-eslint/eslint-plugin": "^8.45.0",
+    "@typescript-eslint/parser": "^8.45.0",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.36.0",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "webpack": "^5.102.0",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "@types/cassandra-driver": "^4.1.1",
+    "cassandra-driver": "^4.8.0",
+    "uuid": "^13.0.0"
+  }
+}
