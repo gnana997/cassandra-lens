@@ -4,98 +4,172 @@ This directory contains **webview implementations** for CassandraLens.
 
 ## What Are Webviews?
 
-Webviews are custom HTML/CSS/JavaScript panels within VS Code. They allow you to build rich UIs beyond what VS Code's standard components provide.
+Webviews are custom HTML/CSS/JavaScript panels within VS Code. They allow you to build rich UIs beyond what VS Code's standard components provide. This extension uses **React** for webview UIs.
 
-## Webviews in CassandraLens
+## Currently Implemented Webviews
 
-### Query Editor
-- **Files**: `queryEditor.ts`, `queryEditor.html`, `queryEditor.css`, `queryEditor.js`
-- **Purpose**: Interactive CQL query editor with results display
-- **Features**:
-  - Multi-line query input
-  - Execute button and keyboard shortcut handling
-  - Results table with pagination
-  - Export to CSV/JSON
-  - Consistency level selector
-  - Execution time display
+### Connection Form Webview
+**Purpose**: Interactive multi-step form for creating and editing Cassandra connection profiles
 
-### Cluster Status Panel
-- **Files**: `clusterStatus.ts`, `clusterStatus.html`
-- **Purpose**: Displays cluster topology and node status
-- **Features**:
-  - Cluster name and version
-  - Datacenter and rack information
-  - Node list with status indicators
-  - Refresh button
+**Files**:
+- **`ConnectionFormPanel.ts`** - Webview panel manager (extension side)
+- **`connectionForm/App.tsx`** - React application with multi-step form logic
+- **`connectionForm/index.tsx`** - React entry point and rendering
 
-### Query History Panel
-- **Files**: `queryHistory.ts`, `queryHistory.html`
-- **Purpose**: Shows recently executed queries
-- **Features**:
-  - Searchable query history
-  - Re-run or copy previous queries
-  - Execution time and status indicators
+**Features**:
+- **Step 1 - Basic Info**: Connection name, contact points, port, datacenter, keyspace
+- **Step 2 - Authentication**: Optional username/password authentication
+- **Step 3 - SSL/TLS**: Optional SSL configuration with certificate verification
+- **Step 4 - Review & Test**: Summary view with test connection button
+- **Validation**: Inline validation for all fields
+- **Test Connection**: Tests connection before saving
+- **Edit Mode**: Pre-fills form when editing existing connections
+- **Auto-styling**: Uses VS Code CSS variables for theme support
 
 ## Webview Architecture
 
-Each webview typically has:
-1. **Controller** (`.ts` file) - TypeScript code that runs in VS Code extension host
-2. **HTML** (`.html` file) - The webview's structure
-3. **CSS** (`.css` file) - Styling
-4. **Client Script** (`.js` file) - JavaScript that runs inside the webview
+### Extension Side (ConnectionFormPanel.ts)
+Manages the webview panel lifecycle:
+
+```typescript
+export class ConnectionFormPanel {
+  // Singleton pattern - only one panel at a time
+  public static currentPanel: ConnectionFormPanel | undefined;
+
+  // Create or show the panel
+  public static createOrShow(
+    extensionUri: vscode.Uri,
+    existingProfile?: ConnectionProfile,
+    onSave?: (profile: Partial<ConnectionProfile>) => Promise<void>,
+    onTest?: (profile: Partial<ConnectionProfile>) => Promise<TestResult>
+  ): void;
+
+  // Generate HTML with proper CSP and nonces
+  private _getHtmlForWebview(webview: vscode.Webview): string;
+
+  // Handle messages from webview
+  webview.onDidReceiveMessage((message: WebviewMessage) => {
+    if (message.type === 'save') { /* ... */ }
+    if (message.type === 'test') { /* ... */ }
+  });
+}
+```
+
+### Webview Side (React App)
+React application running inside the webview:
+
+```typescript
+// Form state management
+const [form, setForm] = useState<FormState>({
+  name: '',
+  contactPoints: [''],
+  port: 9042,
+  localDatacenter: 'datacenter1',
+  auth: { enabled: false },
+  ssl: { enabled: false },
+});
+
+// Send messages to extension
+window.vscodeApi.postMessage({
+  type: 'save',
+  payload: form
+});
+
+// Receive messages from extension
+window.addEventListener('message', (event) => {
+  if (event.data.type === 'testResult') {
+    // Handle test result
+  }
+});
+```
 
 ## Communication Pattern
 
 Webviews communicate with the extension via message passing:
 
+**Extension → Webview:**
 ```typescript
-// Extension → Webview
-webview.postMessage({ type: 'queryResults', data: results });
-
-// Webview → Extension
-webview.onDidReceiveMessage(message => {
-  if (message.type === 'executeQuery') {
-    // Handle query execution
-  }
+// Send test result to webview
+this._panel.webview.postMessage({
+  type: 'testResult',
+  success: true,
+  message: 'Connected successfully!'
 });
 ```
+
+**Webview → Extension:**
+```typescript
+// Test connection from webview
+window.vscodeApi.postMessage({
+  type: 'test',
+  payload: formData
+});
+```
+
+## Build Configuration
+
+Webviews are bundled separately from the extension:
+
+**`webpack.config.cjs`** includes two configurations:
+1. **Extension bundle** (Node.js target) - `extension.js`
+2. **Webview bundle** (Browser target) - `webview.js`
+
+The webview bundle:
+- Uses React 19
+- Targets browser environment
+- Uses webpack DefinePlugin to provide `process.env` for React
+- Outputs to `dist/webview.js`
 
 ## Security
 
 Webviews are sandboxed and require explicit configuration:
 - **CSP (Content Security Policy)**: Restricts what resources can load
-- **Local resource loading**: Must use `asWebviewUri()`
-- **Script execution**: Must enable scripts explicitly
+- **Nonce-based script execution**: Only scripts with correct nonce can run
+- **Local resource loading**: Uses `webview.asWebviewUri()` for extension resources
+- **Message validation**: Validates all messages between extension and webview
 
-## UI Toolkit
+Example CSP:
+```html
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'none';
+  style-src ${webview.cspSource} 'unsafe-inline';
+  script-src 'nonce-${nonce}';
+  img-src ${webview.cspSource} https:;
+  font-src ${webview.cspSource};
+">
+```
 
-CassandraLens uses [@vscode/webview-ui-toolkit](https://github.com/microsoft/vscode-webview-ui-toolkit) for consistent styling:
-- Components automatically match VS Code theme (light/dark)
-- Accessible components out of the box
-- Includes buttons, inputs, data grids, dropdowns, etc.
+## Styling
 
-## Example Usage
+Uses VS Code CSS variables for automatic theme support:
 
-```typescript
-// Create webview panel
-const panel = vscode.window.createWebviewPanel(
-  'cassandraQuery',
-  'CQL Query',
-  vscode.ViewColumn.One,
-  {
-    enableScripts: true,
-    retainContextWhenHidden: true
-  }
-);
+```css
+body {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-editor-background);
+}
 
-// Load HTML content
-panel.webview.html = getWebviewContent(panel.webview, context.extensionUri);
+button.primary {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
 ```
 
 ## Best Practices
 
-- **State management**: Use `retainContextWhenHidden` to preserve state when panel is hidden
+- **State management**: Use `retainContextWhenHidden: true` to preserve state when panel is hidden
 - **Resource URIs**: Always use `webview.asWebviewUri()` for local resources
 - **Theme awareness**: Use CSS variables for colors to support light/dark themes
-- **Performance**: Virtualize large lists (don't render 10,000 rows at once)
-- **Accessibility**: Provide keyboard navigation and ARIA labels
+- **Performance**: Keep virtual DOM updates efficient
+- **Accessibility**: Provide proper labels and keyboard navigation
+- **Validation**: Validate on both webview side (UX) and extension side (security)
+
+## Future Enhancements
+
+Future webviews may include:
+- **Query Editor** - Interactive CQL query editor with results display
+- **Data Browser** - Spreadsheet-like table data viewer with CRUD operations
+- **Cluster Status** - Visual cluster topology and node status dashboard
+- **Query History** - Searchable query history with re-run functionality

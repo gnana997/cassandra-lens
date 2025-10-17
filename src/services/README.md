@@ -6,16 +6,7 @@ This directory contains **business logic services** for CassandraLens.
 
 Services encapsulate core functionality and business logic. They handle data processing, external API calls, and state management without being tied to VS Code's UI layer.
 
-## Services in CassandraLens
-
-### ConnectionManager
-- **File**: `connectionManager.ts`
-- **Purpose**: Manages active Cassandra connections and connection switching
-- **Responsibilities**:
-  - Track current active connection
-  - Handle connection lifecycle (connect/disconnect)
-  - Emit events when connection state changes
-  - Provide singleton access to current connection
+## Currently Implemented Services
 
 ### CassandraClient
 - **File**: `cassandraClient.ts`
@@ -23,9 +14,35 @@ Services encapsulate core functionality and business logic. They handle data pro
 - **Responsibilities**:
   - Establish and maintain connections to Cassandra clusters
   - Execute CQL queries with error handling
-  - Manage connection pooling
-  - Handle authentication and SSL
-  - Provide query timeout and retry logic
+  - Manage connection pooling and lifecycle
+  - Handle authentication (PlainTextAuthProvider) and SSL/TLS
+  - Test connections before saving profiles
+  - Retrieve cluster metadata (version, name)
+- **Key Methods**:
+  - `connect(profile: ConnectionProfile): Promise<ClusterMetadata>`
+  - `disconnect(): Promise<void>`
+  - `testConnection(profile: ConnectionProfile): Promise<TestResult>`
+  - `execute(query: string, params?: any[]): Promise<ResultSet>`
+  - `isConnected(): boolean`
+
+### ConnectionManager
+- **File**: `connectionManager.ts`
+- **Purpose**: Manages the active Cassandra connection and connection state
+- **Responsibilities**:
+  - Track current active connection profile
+  - Handle connection lifecycle (connect/disconnect/reconnect)
+  - Emit events when connection state changes
+  - Provide singleton access to current connection
+  - Notify UI components of status updates
+- **Key Methods**:
+  - `setActiveConnection(profile: ConnectionProfile): Promise<ClusterMetadata>`
+  - `disconnect(): Promise<void>`
+  - `getActiveProfile(): ConnectionProfile | null`
+  - `isConnected(): boolean`
+- **Events**:
+  - `'connected'` - Fired when connection is established
+  - `'disconnected'` - Fired when connection is closed
+  - `'statusChanged'` - Fired when connection status changes
 
 ### ConnectionStorage
 - **File**: `connectionStorage.ts`
@@ -34,31 +51,15 @@ Services encapsulate core functionality and business logic. They handle data pro
   - Save/load connection profiles from workspace settings
   - Store credentials securely in VS Code Secret Storage
   - CRUD operations for connection profiles
-
-### SchemaService
-- **File**: `schemaService.ts`
-- **Purpose**: Queries Cassandra system tables to discover schema
-- **Responsibilities**:
-  - Fetch keyspaces, tables, and columns
-  - Cache schema data for performance
-  - Provide schema refresh functionality
-
-### QueryExecutor
-- **File**: `queryExecutor.ts`
-- **Purpose**: Handles CQL query execution with result formatting
-- **Responsibilities**:
-  - Parse and validate queries
-  - Execute queries with selected consistency level
-  - Format results for webview display
-  - Track query execution time
-
-### TemplateService
-- **File**: `templateService.ts`
-- **Purpose**: Manages query templates
-- **Responsibilities**:
-  - CRUD operations for query templates
-  - Template parameter substitution
-  - Default template loading
+  - Track last connected timestamp for auto-reconnect
+- **Key Methods**:
+  - `saveConnection(profile: ConnectionProfile): Promise<void>`
+  - `loadConnections(): Promise<ConnectionProfile[]>`
+  - `deleteConnection(id: string): Promise<void>`
+  - `updateLastConnectedTimestamp(id: string): Promise<void>`
+- **Security**:
+  - Passwords stored in VS Code Secret Storage API
+  - Never stores passwords in settings.json
 
 ## Design Principles
 
@@ -66,17 +67,36 @@ Services encapsulate core functionality and business logic. They handle data pro
 - **Testability**: Services are plain TypeScript classes, easy to unit test
 - **Loose Coupling**: Services communicate via interfaces, not concrete implementations
 - **Dependency Injection**: Services receive dependencies via constructor for flexibility
+- **Event-Driven**: ConnectionManager emits events for reactive UI updates
 
 ## Usage Pattern
 
-Services are typically instantiated in `extension.ts` and injected into providers:
+Services are typically instantiated in `extension.ts` and injected into providers and commands:
 
 ```typescript
 // In extension.ts
-const connectionManager = new ConnectionManager(context);
 const cassandraClient = new CassandraClient();
-const schemaService = new SchemaService(cassandraClient);
+const connectionManager = new ConnectionManager(cassandraClient);
+const connectionStorage = new ConnectionStorage(context);
 
-// Pass to providers
-const treeProvider = new SchemaTreeProvider(schemaService, connectionManager);
+// Inject into commands
+const connectionCommands = new ConnectionCommands(
+  connectionManager,
+  connectionStorage,
+  testClient,
+  context.extensionUri
+);
+
+// Inject into providers
+const connectionTreeProvider = new ConnectionTreeProvider(
+  connectionStorage,
+  connectionManager
+);
 ```
+
+## Future Enhancements
+
+Future services may include:
+- **SchemaService** - Query Cassandra system tables to discover schema
+- **QueryExecutor** - Handle CQL query execution with result formatting
+- **TemplateService** - Manage query templates and snippets

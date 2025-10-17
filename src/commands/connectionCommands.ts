@@ -13,27 +13,8 @@ import * as vscode from 'vscode';
 import { ConnectionManager } from '../services/connectionManager';
 import { ConnectionStorage } from '../services/connectionStorage';
 import { CassandraClient } from '../services/cassandraClient';
-import { MultiStepInput } from '../utils/multiStepInput';
-import {
-  validateConnectionName,
-  validateContactPoints,
-  validatePort,
-  validateDatacenter,
-  validateKeyspaceName,
-  validateUsername,
-  validatePassword,
-  validateOptionalFilePath,
-  validateTimeout,
-} from '../utils/validators';
-import { ConnectionProfile, AuthConfig, SslConfig, SocketConfig } from '../types/connection';
-
-/**
- * Temporary state object used during connection creation flow.
- */
-interface ConnectionFormState {
-  profile: Partial<ConnectionProfile>;
-  step: number;
-}
+import { ConnectionFormPanel } from '../webviews/ConnectionFormPanel';
+import { ConnectionProfile } from '../types/connection';
 
 /**
  * Command handlers for connection management.
@@ -42,333 +23,94 @@ export class ConnectionCommands {
   constructor(
     private readonly connectionManager: ConnectionManager,
     private readonly connectionStorage: ConnectionStorage,
-    private readonly testClient: CassandraClient
+    private readonly testClient: CassandraClient,
+    private readonly extensionUri: vscode.Uri
   ) {}
 
   /**
    * Command: Add New Connection
    *
-   * Opens a multi-step form to collect connection details,
-   * tests the connection, and saves it.
+   * Opens a webview form to collect connection details and save.
    */
   async addConnection(): Promise<void> {
-    const state: ConnectionFormState = {
-      profile: {
-        port: 9042,
-        auth: { enabled: false },
-        ssl: { enabled: false },
-        socket: {},
-      },
-      step: 1,
-    };
+    ConnectionFormPanel.createOrShow(
+      this.extensionUri,
+      undefined, // No existing profile (new connection)
+      // onSave callback
+      async (profile: Partial<ConnectionProfile>) => {
+        try {
+          // Generate ID for new connection
+          const { v4: uuidv4 } = await import('uuid');
+          const newProfile: ConnectionProfile = {
+            id: uuidv4(),
+            name: profile.name || 'Unnamed Connection',
+            contactPoints: profile.contactPoints || [],
+            port: profile.port || 9042,
+            localDatacenter: profile.localDatacenter || 'datacenter1',
+            keyspace: profile.keyspace,
+            auth: profile.auth || { enabled: false },
+            ssl: profile.ssl || { enabled: false },
+            socket: profile.socket || {},
+            createdAt: new Date(),
+          };
 
-    try {
-      await MultiStepInput.run((input) => this.collectConnectionName(input, state));
+          // Save the connection
+          await this.connectionStorage.saveConnection(newProfile);
 
-      // After flow completes, we have a complete profile
-      const profile = state.profile as ConnectionProfile;
-
-      // Save the connection
-      await this.connectionStorage.saveConnection(profile);
-
-      vscode.window.showInformationMessage(
-        `Connection "${profile.name}" saved successfully!`
-      );
-
-      // Ask if user wants to connect now
-      const connectNow = await vscode.window.showQuickPick(['Yes', 'No'], {
-        placeHolder: 'Connect to this cluster now?',
-      });
-
-      if (connectNow === 'Yes') {
-        await this.connectToProfile(profile);
-      }
-    } catch (error) {
-      // User cancelled or error occurred
-      if (error instanceof Error && error.message !== 'User cancelled') {
-        vscode.window.showErrorMessage(`Failed to add connection: ${error.message}`);
-      }
-    }
-  }
-
-  /**
-   * Step 1: Collect connection name
-   */
-  private async collectConnectionName(
-    input: MultiStepInput,
-    state: ConnectionFormState
-  ): Promise<any> {
-    const name = await input.showInputBox({
-      title: 'Add Cassandra Connection (1/7)',
-      step: 1,
-      totalSteps: 7,
-      placeholder: 'Production Cluster',
-      prompt: 'Enter a name for this connection',
-      validate: async (value) => validateConnectionName(value),
-    });
-
-    state.profile.name = name;
-    return (input: MultiStepInput) => this.collectContactPoints(input, state);
-  }
-
-  /**
-   * Step 2: Collect contact points
-   */
-  private async collectContactPoints(
-    input: MultiStepInput,
-    state: ConnectionFormState
-  ): Promise<any> {
-    const contactPointsStr = await input.showInputBox({
-      title: 'Add Cassandra Connection (2/7)',
-      step: 2,
-      totalSteps: 7,
-      placeholder: '10.0.1.10,10.0.1.11,10.0.1.12',
-      prompt: 'Enter contact points (comma-separated IP addresses or hostnames)',
-      validate: async (value) => validateContactPoints(value),
-    });
-
-    state.profile.contactPoints = contactPointsStr.split(',').map((cp) => cp.trim());
-    return (input: MultiStepInput) => this.collectPort(input, state);
-  }
-
-  /**
-   * Step 3: Collect port number
-   */
-  private async collectPort(input: MultiStepInput, state: ConnectionFormState): Promise<any> {
-    const portStr = await input.showInputBox({
-      title: 'Add Cassandra Connection (3/7)',
-      step: 3,
-      totalSteps: 7,
-      value: '9042',
-      placeholder: '9042',
-      prompt: 'Enter Cassandra native protocol port',
-      validate: async (value) => validatePort(value),
-    });
-
-    state.profile.port = parseInt(portStr, 10);
-    return (input: MultiStepInput) => this.collectDatacenter(input, state);
-  }
-
-  /**
-   * Step 4: Collect local datacenter name
-   */
-  private async collectDatacenter(
-    input: MultiStepInput,
-    state: ConnectionFormState
-  ): Promise<any> {
-    const datacenter = await input.showInputBox({
-      title: 'Add Cassandra Connection (4/7)',
-      step: 4,
-      totalSteps: 7,
-      placeholder: 'datacenter1',
-      prompt: 'Enter local datacenter name (required by driver load balancing)',
-      validate: async (value) => validateDatacenter(value),
-    });
-
-    state.profile.localDatacenter = datacenter;
-
-    // Optional: Ask for default keyspace
-    return (input: MultiStepInput) => this.collectKeyspace(input, state);
-  }
-
-  /**
-   * Step 4.5: Collect optional default keyspace
-   */
-  private async collectKeyspace(
-    input: MultiStepInput,
-    state: ConnectionFormState
-  ): Promise<any> {
-    const keyspace = await input.showInputBox({
-      title: 'Add Cassandra Connection (5/7)',
-      step: 5,
-      totalSteps: 7,
-      placeholder: '(optional)',
-      prompt: 'Enter default keyspace (optional, press Enter to skip)',
-      validate: async (value) => validateKeyspaceName(value),
-    });
-
-    if (keyspace && keyspace.trim().length > 0) {
-      state.profile.keyspace = keyspace;
-    }
-
-    return (input: MultiStepInput) => this.askEnableAuth(input, state);
-  }
-
-  /**
-   * Step 5: Ask if authentication is needed
-   */
-  private async askEnableAuth(
-    input: MultiStepInput,
-    state: ConnectionFormState
-  ): Promise<any> {
-    const enableAuth = await input.showQuickPick({
-      title: 'Add Cassandra Connection (6/7)',
-      step: 6,
-      totalSteps: 7,
-      placeholder: 'Does this cluster require authentication?',
-      items: [
-        { label: 'Yes', description: 'Username and password required' },
-        { label: 'No', description: 'Anonymous connection' },
-      ],
-    });
-
-    if (enableAuth.label === 'Yes') {
-      state.profile.auth = { enabled: true };
-      return (input: MultiStepInput) => this.collectUsername(input, state);
-    } else {
-      state.profile.auth = { enabled: false };
-      return (input: MultiStepInput) => this.askEnableSSL(input, state);
-    }
-  }
-
-  /**
-   * Step 5a: Collect username (if auth enabled)
-   */
-  private async collectUsername(
-    input: MultiStepInput,
-    state: ConnectionFormState
-  ): Promise<any> {
-    const username = await input.showInputBox({
-      title: 'Add Cassandra Connection - Authentication',
-      step: 6,
-      totalSteps: 7,
-      placeholder: 'cassandra',
-      prompt: 'Enter username',
-      validate: async (value) => validateUsername(value),
-    });
-
-    state.profile.auth!.username = username;
-    return (input: MultiStepInput) => this.collectPassword(input, state);
-  }
-
-  /**
-   * Step 5b: Collect password (if auth enabled)
-   */
-  private async collectPassword(
-    input: MultiStepInput,
-    state: ConnectionFormState
-  ): Promise<any> {
-    const password = await input.showInputBox({
-      title: 'Add Cassandra Connection - Authentication',
-      step: 6,
-      totalSteps: 7,
-      placeholder: '********',
-      prompt: 'Enter password',
-      password: true,
-      validate: async (value) => validatePassword(value),
-    });
-
-    state.profile.auth!.password = password;
-    return (input: MultiStepInput) => this.askEnableSSL(input, state);
-  }
-
-  /**
-   * Step 6: Ask if SSL is needed
-   */
-  private async askEnableSSL(input: MultiStepInput, state: ConnectionFormState): Promise<any> {
-    const enableSSL = await input.showQuickPick({
-      title: 'Add Cassandra Connection (7/7)',
-      step: 7,
-      totalSteps: 7,
-      placeholder: 'Enable SSL/TLS encryption?',
-      items: [
-        { label: 'No', description: 'Unencrypted connection (for local development)' },
-        { label: 'Yes', description: 'Encrypted connection with SSL/TLS' },
-      ],
-    });
-
-    if (enableSSL.label === 'Yes') {
-      state.profile.ssl = { enabled: true, rejectUnauthorized: true };
-      return (input: MultiStepInput) => this.collectSSLCertPath(input, state);
-    } else {
-      state.profile.ssl = { enabled: false };
-      return (input: MultiStepInput) => this.confirmAndTest(input, state);
-    }
-  }
-
-  /**
-   * Step 6a: Collect SSL certificate path (if SSL enabled)
-   */
-  private async collectSSLCertPath(
-    input: MultiStepInput,
-    state: ConnectionFormState
-  ): Promise<any> {
-    const caCertPath = await input.showInputBox({
-      title: 'Add Cassandra Connection - SSL Configuration',
-      step: 7,
-      totalSteps: 7,
-      placeholder: '/path/to/ca-cert.pem (optional)',
-      prompt: 'Enter path to CA certificate (optional, press Enter to skip)',
-      validate: async (value) => validateOptionalFilePath(value, 'CA certificate'),
-    });
-
-    if (caCertPath && caCertPath.trim().length > 0) {
-      state.profile.ssl!.caCertPath = caCertPath;
-    }
-
-    return (input: MultiStepInput) => this.confirmAndTest(input, state);
-  }
-
-  /**
-   * Step 7: Confirm and test connection
-   */
-  private async confirmAndTest(
-    input: MultiStepInput,
-    state: ConnectionFormState
-  ): Promise<any> {
-    const action = await input.showQuickPick({
-      title: 'Add Cassandra Connection - Ready',
-      step: 7,
-      totalSteps: 7,
-      placeholder: 'Connection configured. What would you like to do?',
-      items: [
-        {
-          label: '$(cloud-upload) Test & Save',
-          description: 'Test connection before saving',
-        },
-        {
-          label: '$(save) Save Without Testing',
-          description: 'Save connection without testing',
-        },
-      ],
-      canGoBack: true,
-    });
-
-    if (action.label.includes('Test & Save')) {
-      await this.testConnectionBeforeSave(state.profile as ConnectionProfile);
-    }
-
-    // Return undefined to end the flow
-    return undefined;
-  }
-
-  /**
-   * Tests a connection configuration before saving.
-   */
-  private async testConnectionBeforeSave(profile: ConnectionProfile): Promise<void> {
-    return vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: `Testing connection to ${profile.name}...`,
-        cancellable: false,
-      },
-      async (progress) => {
-        progress.report({ increment: 0, message: 'Connecting...' });
-
-        const result = await this.testClient.testConnection(profile);
-
-        if (result.success) {
-          progress.report({ increment: 100, message: 'Success!' });
-          const version = result.metadata?.cassandraVersion || 'Unknown';
-          const cluster = result.metadata?.clusterName || 'Unknown';
           vscode.window.showInformationMessage(
-            `✓ Connection successful!\n` +
-              `Cluster: ${cluster}\n` +
-              `Version: ${version}\n` +
-              `Time: ${result.connectionTimeMs}ms`
+            `Connection "${newProfile.name}" saved successfully!`
           );
-        } else {
-          throw new Error(result.errorMessage || 'Connection test failed');
+
+          // Ask if user wants to connect now
+          const connectNow = await vscode.window.showQuickPick(['Yes', 'No'], {
+            placeHolder: 'Connect to this cluster now?',
+          });
+
+          if (connectNow === 'Yes') {
+            await this.connectToProfile(newProfile);
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          vscode.window.showErrorMessage(`Failed to save connection: ${message}`);
+          throw error; // Re-throw to show error in webview
+        }
+      },
+      // onTest callback
+      async (profile: Partial<ConnectionProfile>) => {
+        try {
+          const testProfile: ConnectionProfile = {
+            id: 'test',
+            name: profile.name || 'Test',
+            contactPoints: profile.contactPoints || [],
+            port: profile.port || 9042,
+            localDatacenter: profile.localDatacenter || 'datacenter1',
+            keyspace: profile.keyspace,
+            auth: profile.auth || { enabled: false },
+            ssl: profile.ssl || { enabled: false },
+            socket: profile.socket || {},
+            createdAt: new Date(),
+          };
+
+          const result = await this.testClient.testConnection(testProfile);
+
+          if (result.success) {
+            const version = result.metadata?.cassandraVersion || 'Unknown';
+            const cluster = result.metadata?.clusterName || 'Unknown';
+            return {
+              success: true,
+              message: `Connected successfully!\nCluster: ${cluster}\nVersion: ${version}\nTime: ${result.connectionTimeMs}ms`
+            };
+          } else {
+            return {
+              success: false,
+              message: result.errorMessage || 'Connection test failed'
+            };
+          }
+        } catch (error) {
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : 'Connection test failed'
+          };
         }
       }
     );
@@ -450,48 +192,171 @@ export class ConnectionCommands {
   }
 
   /**
+   * Command: Connect to Connection
+   *
+   * Connects to a specific connection profile (invoked from tree view).
+   *
+   * @param connection - The connection profile to connect to
+   */
+  async connectToConnection(connection: ConnectionProfile): Promise<void> {
+    try {
+      await this.connectToProfile(connection);
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to connect: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Command: Edit Connection
+   *
+   * Edits an existing connection profile (invoked from tree view).
+   * Opens the webview form pre-filled with existing values.
+   *
+   * @param connection - The connection profile to edit
+   */
+  async editConnection(connection: ConnectionProfile): Promise<void> {
+    ConnectionFormPanel.createOrShow(
+      this.extensionUri,
+      connection, // Pass existing profile to pre-fill form
+      // onSave callback
+      async (profile: Partial<ConnectionProfile>) => {
+        try {
+          // Merge updates with existing connection (preserve ID, createdAt, and lastConnectedAt)
+          const updatedProfile: ConnectionProfile = {
+            ...connection, // Start with existing profile
+            name: profile.name || connection.name,
+            contactPoints: profile.contactPoints || connection.contactPoints,
+            port: profile.port || connection.port,
+            localDatacenter: profile.localDatacenter || connection.localDatacenter,
+            keyspace: profile.keyspace,
+            auth: profile.auth || connection.auth,
+            ssl: profile.ssl || connection.ssl,
+            socket: profile.socket || connection.socket,
+            lastModifiedAt: new Date(),
+          };
+
+          // Save the connection (will update existing due to same ID)
+          await this.connectionStorage.saveConnection(updatedProfile);
+
+          vscode.window.showInformationMessage(
+            `Connection "${updatedProfile.name}" updated successfully!`
+          );
+
+          // If this was the active connection, reconnect with new settings
+          const activeProfile = this.connectionManager.getActiveProfile();
+          if (activeProfile?.id === updatedProfile.id && this.connectionManager.isConnected()) {
+            const reconnect = await vscode.window.showQuickPick(['Yes', 'No'], {
+              placeHolder: 'Reconnect with new settings?',
+            });
+
+            if (reconnect === 'Yes') {
+              await this.connectionManager.disconnect();
+              await this.connectToProfile(updatedProfile);
+            }
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          vscode.window.showErrorMessage(`Failed to update connection: ${message}`);
+          throw error; // Re-throw to show error in webview
+        }
+      },
+      // onTest callback
+      async (profile: Partial<ConnectionProfile>) => {
+        try {
+          const testProfile: ConnectionProfile = {
+            ...connection,
+            name: profile.name || connection.name,
+            contactPoints: profile.contactPoints || connection.contactPoints,
+            port: profile.port || connection.port,
+            localDatacenter: profile.localDatacenter || connection.localDatacenter,
+            keyspace: profile.keyspace,
+            auth: profile.auth || connection.auth,
+            ssl: profile.ssl || connection.ssl,
+          };
+
+          const result = await this.testClient.testConnection(testProfile);
+
+          if (result.success) {
+            const version = result.metadata?.cassandraVersion || 'Unknown';
+            const cluster = result.metadata?.clusterName || 'Unknown';
+            return {
+              success: true,
+              message: `Connected successfully!\nCluster: ${cluster}\nVersion: ${version}\nTime: ${result.connectionTimeMs}ms`
+            };
+          } else {
+            return {
+              success: false,
+              message: result.errorMessage || 'Connection test failed'
+            };
+          }
+        } catch (error) {
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : 'Connection test failed'
+          };
+        }
+      }
+    );
+  }
+
+  /**
    * Command: Delete Connection
    *
-   * Shows a QuickPick to select and delete a connection.
+   * Shows a QuickPick to select and delete a connection,
+   * or deletes a specific connection if provided (from tree view).
+   *
+   * @param connection - Optional connection to delete (from context menu)
    */
-  async deleteConnection(): Promise<void> {
+  async deleteConnection(connection?: ConnectionProfile): Promise<void> {
     try {
-      const connections = await this.connectionStorage.loadConnections();
+      let profileToDelete: ConnectionProfile | undefined = connection;
 
-      if (connections.length === 0) {
-        vscode.window.showInformationMessage('No saved connections to delete.');
-        return;
+      // If no connection provided, show QuickPick to select one
+      if (!profileToDelete) {
+        const connections = await this.connectionStorage.loadConnections();
+
+        if (connections.length === 0) {
+          vscode.window.showInformationMessage('No saved connections to delete.');
+          return;
+        }
+
+        const items = connections.map((conn) => ({
+          label: conn.name,
+          description: conn.contactPoints.join(', '),
+          profile: conn,
+        }));
+
+        const selected = await vscode.window.showQuickPick(items, {
+          placeHolder: 'Select a connection to delete',
+        });
+
+        if (!selected) {
+          return; // User cancelled
+        }
+
+        profileToDelete = selected.profile;
       }
 
-      const items = connections.map((conn) => ({
-        label: conn.name,
-        description: conn.contactPoints.join(', '),
-        profile: conn,
-      }));
+      // Confirm deletion
+      const confirm = await vscode.window.showWarningMessage(
+        `Delete connection "${profileToDelete.name}"?`,
+        { modal: true },
+        'Delete'
+      );
 
-      const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: 'Select a connection to delete',
-      });
-
-      if (selected) {
-        const confirm = await vscode.window.showWarningMessage(
-          `Delete connection "${selected.profile.name}"?`,
-          { modal: true },
-          'Delete'
-        );
-
-        if (confirm === 'Delete') {
-          // Disconnect if this is the active connection
-          const activeProfile = this.connectionManager.getActiveProfile();
-          if (activeProfile?.id === selected.profile.id) {
-            await this.connectionManager.disconnect();
-          }
-
-          await this.connectionStorage.deleteConnection(selected.profile.id);
-          vscode.window.showInformationMessage(
-            `Connection "${selected.profile.name}" deleted.`
-          );
+      if (confirm === 'Delete') {
+        // Disconnect if this is the active connection
+        const activeProfile = this.connectionManager.getActiveProfile();
+        if (activeProfile?.id === profileToDelete.id) {
+          await this.connectionManager.disconnect();
         }
+
+        await this.connectionStorage.deleteConnection(profileToDelete.id);
+        vscode.window.showInformationMessage(
+          `Connection "${profileToDelete.name}" deleted.`
+        );
       }
     } catch (error) {
       vscode.window.showErrorMessage(

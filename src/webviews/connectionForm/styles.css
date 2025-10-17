@@ -1,0 +1,294 @@
+/**
+ * Styles for Connection Form Webview
+ *
+ * Uses VS Code CSS variables for seamless theme integration.
+ * Reference: https://code.visualstudio.com/api/references/theme-color
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Header */
+.header {
+  margin-bottom: 30px;
+}
+
+.header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  color: var(--vscode-foreground);
+}
+
+.steps {
+  display: flex;
+  gap: 20px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  padding-bottom: 10px;
+}
+
+.step {
+  font-size: 13px;
+  color: var(--vscode-descriptionForeground);
+  padding: 5px 10px;
+  cursor: default;
+}
+
+.step.active {
+  color: var(--vscode-textLink-foreground);
+  font-weight: 600;
+  border-bottom: 2px solid var(--vscode-textLink-foreground);
+  margin-bottom: -2px;
+}
+
+/* Form */
+.form {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 20px;
+}
+
+.step-content {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.step-content h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  color: var(--vscode-foreground);
+}
+
+.step-content h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 20px 0 10px 0;
+  color: var(--vscode-foreground);
+}
+
+/* Form Groups */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+input[type="text"],
+input[type="number"],
+input[type="password"] {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-input-foreground);
+  background-color: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 2px;
+  outline: none;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="password"]:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+input.error {
+  border-color: var(--vscode-inputValidation-errorBorder);
+  background-color: var(--vscode-inputValidation-errorBackground);
+}
+
+.help-text {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.error-message {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--vscode-inputValidation-errorForeground);
+}
+
+/* Checkbox */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
+/* Review Section */
+.review-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+}
+
+.review-item {
+  display: flex;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.review-item:last-child {
+  margin-bottom: 0;
+}
+
+.review-label {
+  min-width: 150px;
+  font-weight: 500;
+  color: var(--vscode-descriptionForeground);
+}
+
+.review-value {
+  color: var(--vscode-foreground);
+  word-break: break-all;
+}
+
+/* Test Result */
+.test-result {
+  margin-top: 20px;
+  padding: 12px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.test-result.success {
+  background-color: var(--vscode-testing-iconPassed);
+  color: var(--vscode-editor-background);
+  opacity: 0.9;
+}
+
+.test-result.error {
+  background-color: var(--vscode-inputValidation-errorBackground);
+  border: 1px solid var(--vscode-inputValidation-errorBorder);
+  color: var(--vscode-inputValidation-errorForeground);
+}
+
+.test-result strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.test-result p {
+  margin: 0;
+  opacity: 0.9;
+}
+
+/* Footer */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 20px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+}
+
+/* Buttons */
+.button {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-family: var(--vscode-font-family);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.button:active:not(:disabled) {
+  opacity: 0.8;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.button.primary {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.button.primary:hover:not(:disabled) {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+.button.secondary {
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.button.secondary:hover:not(:disabled) {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Scrollbar customization (optional) */
+.form::-webkit-scrollbar {
+  width: 10px;
+}
+
+.form::-webkit-scrollbar-track {
+  background: var(--vscode-editor-background);
+}
+
+.form::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 5px;
+}
+
+.form::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+}

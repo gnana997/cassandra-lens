@@ -1,15 +1,24 @@
 # Utils
 
-This directory contains **utility functions and helper classes** for CassandraLens.
+This directory is reserved for **utility functions and helper classes** for CassandraLens.
 
 ## What Are Utils?
 
 Utilities are reusable functions and classes that don't fit into specific services or providers. They provide common functionality used throughout the extension.
 
-## Utilities in CassandraLens
+## Current Status
+
+**This directory is currently empty.** All validation logic is currently implemented inline within React components.
+
+### Previous Content (Removed)
+- ~~`multiStepInput.ts`~~ - Removed (replaced by React-based webview form)
+- ~~`validators.ts`~~ - Removed (validation logic moved inline to React App.tsx)
+
+## Future Utilities
+
+As the extension grows, this directory may include:
 
 ### CQL Parser
-- **File**: `cqlParser.ts`
 - **Purpose**: Parse and analyze CQL query text
 - **Functions**:
   - `extractTableName(query: string): string` - Gets table from SELECT/INSERT
@@ -17,17 +26,7 @@ Utilities are reusable functions and classes that don't fit into specific servic
   - `hasAllowFiltering(query: string): boolean` - Detects ALLOW FILTERING
   - `hasLimit(query: string): boolean` - Checks for LIMIT clause
 
-### Validators
-- **File**: `validators.ts`
-- **Purpose**: Input validation for connection forms and settings
-- **Functions**:
-  - `validateContactPoints(input: string): boolean` - Validates IP/hostname list
-  - `validatePort(input: string): boolean` - Ensures valid port number
-  - `validateDatacenter(input: string): boolean` - Checks datacenter name
-  - `validateKeyspaceName(input: string): boolean` - CQL identifier validation
-
 ### Formatters
-- **File**: `formatters.ts`
 - **Purpose**: Format data for display
 - **Functions**:
   - `formatCQL(query: string): string` - Pretty-print CQL with indentation
@@ -36,7 +35,6 @@ Utilities are reusable functions and classes that don't fit into specific servic
   - `formatDuration(ms: number): string` - Format query execution time
 
 ### Result Exporters
-- **File**: `exporters.ts`
 - **Purpose**: Export query results to different formats
 - **Functions**:
   - `exportToCSV(results: any[], columns: string[]): string`
@@ -44,7 +42,6 @@ Utilities are reusable functions and classes that don't fit into specific servic
   - `exportToMarkdown(results: any[], columns: string[]): string`
 
 ### Type Guards
-- **File**: `typeGuards.ts`
 - **Purpose**: TypeScript type checking utilities
 - **Functions**:
   - `isConnectionProfile(obj: any): obj is ConnectionProfile`
@@ -52,7 +49,6 @@ Utilities are reusable functions and classes that don't fit into specific servic
   - `isCassandraError(error: any): error is CassandraError`
 
 ### Constants
-- **File**: `constants.ts`
 - **Purpose**: Application-wide constants
 - **Exports**:
   - `DEFAULT_PORT = 9042`
@@ -61,7 +57,6 @@ Utilities are reusable functions and classes that don't fit into specific servic
   - `CASSANDRA_KEYWORDS = ['SELECT', 'FROM', ...]`
 
 ### Logger
-- **File**: `logger.ts`
 - **Purpose**: Centralized logging to VS Code output channel
 - **Functions**:
   - `log.info(message: string)` - Info messages
@@ -71,10 +66,13 @@ Utilities are reusable functions and classes that don't fit into specific servic
 
 ## Design Principles
 
+When adding utilities:
 - **Pure functions**: Utils should be stateless when possible
 - **Single purpose**: Each function does one thing well
 - **Well-tested**: Utils are perfect candidates for unit testing
 - **Documented**: Add JSDoc comments explaining parameters and return values
+- **No side effects**: Avoid utils that modify global state
+- **Type safety**: Use TypeScript types/interfaces for parameters and return values
 
 ## Usage Pattern
 
@@ -90,5 +88,5 @@ import { log } from '../utils/logger';
 
 - **Don't duplicate logic**: If you're writing the same code twice, make it a util
 - **Keep it simple**: Utils should be easy to understand and use
-- **No side effects**: Avoid utils that modify global state
-- **Type safety**: Use TypeScript types/interfaces for parameters and return values
+- **No dependencies on services**: Utils should be low-level, independent helpers
+- **Export named functions**: Prefer `export function foo()` over `export default`

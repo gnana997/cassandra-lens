@@ -18,6 +18,10 @@ import { ConnectionCommands } from './commands/connectionCommands';
 // Import UI components
 import { ConnectionStatusBar } from './ui/statusBar';
 
+// Import providers
+import { ConnectionTreeProvider } from './providers/connectionTreeProvider';
+import { ConnectionProfile } from './types/connection';
+
 /**
  * Global connection manager instance.
  * Used for cleanup in deactivate().
@@ -61,7 +65,8 @@ export function activate(context: vscode.ExtensionContext) {
   const connectionCommands = new ConnectionCommands(
     connectionManager,
     connectionStorage,
-    testClient
+    testClient,
+    context.extensionUri
   );
 
   // ============================================================================
@@ -74,6 +79,19 @@ export function activate(context: vscode.ExtensionContext) {
     'cassandra-lens.switchConnection'
   );
   context.subscriptions.push(statusBar);
+
+  // Create connection tree provider (shows connections in sidebar)
+  const connectionTreeProvider = new ConnectionTreeProvider(
+    connectionStorage,
+    connectionManager
+  );
+
+  // Register tree view
+  const treeView = vscode.window.createTreeView('cassandraLensConnections', {
+    treeDataProvider: connectionTreeProvider,
+    showCollapseAll: false
+  });
+  context.subscriptions.push(treeView);
 
   // ============================================================================
   // Step 4: Register Commands
@@ -93,14 +111,112 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('cassandra-lens.deleteConnection', () =>
-      connectionCommands.deleteConnection()
+    vscode.commands.registerCommand(
+      'cassandra-lens.deleteConnection',
+      (treeItem?: any) => {
+        // Extract connection from tree item when called from context menu
+        const connection = treeItem?.connection || treeItem;
+        connectionCommands.deleteConnection(connection);
+      }
     )
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand('cassandra-lens.disconnect', () =>
       connectionCommands.disconnect()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cassandra-lens.connectToConnection',
+      async (treeItem: any) => {
+        // Extract connection from tree item (context menu) or use direct argument
+        let connection = treeItem?.connection || treeItem;
+
+        // If no connection provided (called from command palette), show QuickPick
+        if (!connection) {
+          const connections = await connectionStorage.loadConnections();
+
+          if (connections.length === 0) {
+            const addNew = await vscode.window.showInformationMessage(
+              'No saved connections. Would you like to add one?',
+              'Add Connection'
+            );
+            if (addNew === 'Add Connection') {
+              await connectionCommands.addConnection();
+            }
+            return;
+          }
+
+          const activeProfile = connectionManager?.getActiveProfile();
+
+          const items = connections.map((conn) => ({
+            label: `$(database) ${conn.name}`,
+            description: conn.contactPoints.join(', '),
+            detail: conn.id === activeProfile?.id ? '(Currently connected)' : undefined,
+            profile: conn
+          }));
+
+          const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select a connection'
+          });
+
+          if (!selected) {
+            return; // User cancelled
+          }
+
+          connection = selected.profile;
+        }
+
+        // Now we have a connection from either source
+        connectionCommands.connectToConnection(connection);
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cassandra-lens.editConnection',
+      async (treeItem: any) => {
+        // Extract connection from tree item when called from context menu
+        let connection = treeItem?.connection || treeItem;
+
+        // If no connection provided (called from command palette), show QuickPick
+        if (!connection) {
+          const connections = await connectionStorage.loadConnections();
+
+          if (connections.length === 0) {
+            vscode.window.showInformationMessage('No saved connections to edit.');
+            return;
+          }
+
+          const items = connections.map((conn) => ({
+            label: conn.name,
+            description: conn.contactPoints.join(', '),
+            profile: conn
+          }));
+
+          const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select a connection to edit'
+          });
+
+          if (!selected) {
+            return; // User cancelled
+          }
+
+          connection = selected.profile;
+        }
+
+        // Now we have a connection from either source
+        connectionCommands.editConnection(connection);
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('cassandra-lens.refreshConnections', () =>
+      connectionTreeProvider.refresh()
     )
   );
 

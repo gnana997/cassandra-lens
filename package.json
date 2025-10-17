@@ -21,6 +21,24 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "cassandraLens",
+          "title": "CassandraLens",
+          "icon": "media/cassandra-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "cassandraLens": [
+        {
+          "id": "cassandraLensConnections",
+          "name": "Connections",
+          "icon": "./media/cassandra-icon.svg"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "cassandra-lens.addConnection",
@@ -41,6 +59,63 @@
         "command": "cassandra-lens.disconnect",
         "title": "CassandraLens: Disconnect",
         "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "cassandra-lens.connectToConnection",
+        "title": "CassandraLens: Connect",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "cassandra-lens.editConnection",
+        "title": "CassandraLens: Edit Connection",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "cassandra-lens.refreshConnections",
+        "title": "CassandraLens: Refresh Connections",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "cassandra-lens.addConnection",
+          "when": "view == cassandraLensConnections",
+          "group": "navigation"
+        },
+        {
+          "command": "cassandra-lens.refreshConnections",
+          "when": "view == cassandraLensConnections",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "cassandra-lens.connectToConnection",
+          "when": "view == cassandraLensConnections && viewItem == connection-disconnected",
+          "group": "connection@1"
+        },
+        {
+          "command": "cassandra-lens.disconnect",
+          "when": "view == cassandraLensConnections && viewItem == connection-connected",
+          "group": "connection@1"
+        },
+        {
+          "command": "cassandra-lens.editConnection",
+          "when": "view == cassandraLensConnections && viewItem =~ /^connection-/",
+          "group": "connection@2"
+        },
+        {
+          "command": "cassandra-lens.deleteConnection",
+          "when": "view == cassandraLensConnections && viewItem =~ /^connection-/",
+          "group": "connection@3"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "cassandraLensConnections",
+        "contents": "No Cassandra connections found.\n[Add Connection](command:cassandra-lens.addConnection)\nConnect to a Cassandra cluster to explore schemas and run queries."
       }
     ],
     "configuration": {
@@ -69,12 +144,16 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
     "@types/vscode": "^1.105.0",
     "@typescript-eslint/eslint-plugin": "^8.45.0",
     "@typescript-eslint/parser": "^8.45.0",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
+    "css-loader": "^7.1.2",
     "eslint": "^9.36.0",
+    "style-loader": "^4.0.0",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "webpack": "^5.102.0",
@@ -83,6 +162,8 @@
   "dependencies": {
     "@types/cassandra-driver": "^4.1.1",
     "cassandra-driver": "^4.8.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "uuid": "^13.0.0"
   }
 }
