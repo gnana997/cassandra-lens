@@ -74,6 +74,41 @@
         "command": "cassandra-lens.refreshConnections",
         "title": "CassandraLens: Refresh Connections",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "cassandra-lens.copyKeyspaceName",
+        "title": "CassandraLens: Copy Keyspace Name",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "cassandra-lens.copyTableName",
+        "title": "CassandraLens: Copy Table Name",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "cassandra-lens.copyColumnName",
+        "title": "CassandraLens: Copy Column Name",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "cassandra-lens.copyColumnPath",
+        "title": "CassandraLens: Copy Column Path",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "cassandra-lens.browseTableData",
+        "title": "CassandraLens: Browse Table Data",
+        "icon": "$(table)"
+      },
+      {
+        "command": "cassandra-lens.describeTable",
+        "title": "CassandraLens: Describe Table",
+        "icon": "$(info)"
+      },
+      {
+        "command": "cassandra-lens.refreshNode",
+        "title": "CassandraLens: Refresh",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -109,6 +144,46 @@
           "command": "cassandra-lens.deleteConnection",
           "when": "view == cassandraLensConnections && viewItem =~ /^connection-/",
           "group": "connection@3"
+        },
+        {
+          "command": "cassandra-lens.copyKeyspaceName",
+          "when": "view == cassandraLensConnections && viewItem == keyspace",
+          "group": "clipboard@1"
+        },
+        {
+          "command": "cassandra-lens.refreshNode",
+          "when": "view == cassandraLensConnections && viewItem == keyspace",
+          "group": "actions@1"
+        },
+        {
+          "command": "cassandra-lens.browseTableData",
+          "when": "view == cassandraLensConnections && viewItem == table",
+          "group": "actions@1"
+        },
+        {
+          "command": "cassandra-lens.describeTable",
+          "when": "view == cassandraLensConnections && viewItem == table",
+          "group": "actions@2"
+        },
+        {
+          "command": "cassandra-lens.copyTableName",
+          "when": "view == cassandraLensConnections && viewItem == table",
+          "group": "clipboard@1"
+        },
+        {
+          "command": "cassandra-lens.refreshNode",
+          "when": "view == cassandraLensConnections && viewItem == table",
+          "group": "actions@3"
+        },
+        {
+          "command": "cassandra-lens.copyColumnName",
+          "when": "view == cassandraLensConnections && viewItem =~ /^column-/",
+          "group": "clipboard@1"
+        },
+        {
+          "command": "cassandra-lens.copyColumnPath",
+          "when": "view == cassandraLensConnections && viewItem =~ /^column-/",
+          "group": "clipboard@2"
         }
       ]
     },
@@ -125,6 +200,18 @@
           "type": "array",
           "default": [],
           "description": "Saved Cassandra connection profiles (passwords stored securely in Secret Storage)",
+          "scope": "window"
+        },
+        "cassandraLens.schema.filterSystemKeyspaces": {
+          "type": "boolean",
+          "default": false,
+          "description": "Hide system keyspaces (system, system_auth, system_distributed, etc.) in the schema tree",
+          "scope": "window"
+        },
+        "cassandraLens.schema.cacheEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable caching of schema metadata to improve performance",
           "scope": "window"
         }
       }

@@ -15,13 +15,23 @@ export class ConnectionTreeItem extends vscode.TreeItem {
    * @param connection - The connection profile to display
    * @param isActive - Whether this connection is currently active
    * @param isError - Whether this connection is in error state
+   * @param collapsibleState - Optional collapsible state (defaults based on connection status)
    */
   constructor(
     public readonly connection: ConnectionProfile,
     public readonly isActive: boolean,
-    public readonly isError: boolean = false
+    public readonly isError: boolean = false,
+    collapsibleState?: vscode.TreeItemCollapsibleState
   ) {
-    super(connection.name, vscode.TreeItemCollapsibleState.None);
+    // If collapsible state not specified, make active connections expandable, others not
+    super(
+      connection.name,
+      collapsibleState !== undefined
+        ? collapsibleState
+        : isActive
+        ? vscode.TreeItemCollapsibleState.Collapsed
+        : vscode.TreeItemCollapsibleState.None
+    );
 
     // Set description (shows next to name in tree)
     this.description = connection.contactPoints.join(', ');

@@ -11,9 +11,11 @@ import * as vscode from 'vscode';
 import { CassandraClient } from './services/cassandraClient';
 import { ConnectionManager } from './services/connectionManager';
 import { ConnectionStorage } from './services/connectionStorage';
+import { SchemaService } from './services/schemaService';
 
 // Import commands
 import { ConnectionCommands } from './commands/connectionCommands';
+import { SchemaCommands } from './commands/schemaCommands';
 
 // Import UI components
 import { ConnectionStatusBar } from './ui/statusBar';
@@ -55,6 +57,9 @@ export function activate(context: vscode.ExtensionContext) {
   // Create connection storage (persists connection profiles)
   const connectionStorage = new ConnectionStorage(context);
 
+  // Create schema service (queries Cassandra schema with caching)
+  const schemaService = new SchemaService(cassandraClient);
+
   // Create a separate client for testing connections (doesn't interfere with active connection)
   const testClient = new CassandraClient();
 
@@ -80,18 +85,22 @@ export function activate(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(statusBar);
 
-  // Create connection tree provider (shows connections in sidebar)
+  // Create connection tree provider (shows connections and schema in sidebar)
   const connectionTreeProvider = new ConnectionTreeProvider(
     connectionStorage,
-    connectionManager
+    connectionManager,
+    schemaService
   );
 
   // Register tree view
   const treeView = vscode.window.createTreeView('cassandraLensConnections', {
     treeDataProvider: connectionTreeProvider,
-    showCollapseAll: false
+    showCollapseAll: true // Enable collapse all for schema hierarchy
   });
   context.subscriptions.push(treeView);
+
+  // Create schema commands handler (context menu actions for schema items)
+  const schemaCommands = new SchemaCommands(connectionTreeProvider, schemaService);
 
   // ============================================================================
   // Step 4: Register Commands
@@ -217,6 +226,56 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('cassandra-lens.refreshConnections', () =>
       connectionTreeProvider.refresh()
+    )
+  );
+
+  // Schema Commands
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cassandra-lens.copyKeyspaceName',
+      (item) => schemaCommands.copyKeyspaceName(item)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cassandra-lens.copyTableName',
+      (item) => schemaCommands.copyTableName(item)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cassandra-lens.copyColumnName',
+      (item) => schemaCommands.copyColumnName(item)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cassandra-lens.copyColumnPath',
+      (item) => schemaCommands.copyColumnPath(item)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cassandra-lens.browseTableData',
+      (item) => schemaCommands.browseTableData(item)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cassandra-lens.describeTable',
+      (item) => schemaCommands.describeTable(item)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cassandra-lens.refreshNode',
+      (item) => schemaCommands.refreshNode(item)
     )
   );
 
