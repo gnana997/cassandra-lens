@@ -3,7 +3,7 @@
   "displayName": "CassandraLens",
   "description": "Apache Cassandra database management and development tool for VS Code",
   "version": "0.1.0",
-  "publisher": "gnana997",
+  "publisher": "Gnana997",
   "repository": {
     "type": "git",
     "url": "https://github.com/gnana997/cassandra-lens.git"
