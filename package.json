@@ -49,7 +49,7 @@
         {
           "id": "cassandraLensConnections",
           "name": "Connections",
-          "icon": "./media/cassandra-icon.svg"
+          "icon": "media/cassandra-icon.svg"
         }
       ]
     },
