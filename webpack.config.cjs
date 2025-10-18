@@ -102,4 +102,50 @@ const webviewConfig = {
   ]
 };
 
-module.exports = [ extensionConfig, webviewConfig ];
+/** @type WebpackConfig */
+const queryResultsWebviewConfig = {
+  target: 'web', // Webviews run in a browser context
+  mode: 'none',
+
+  entry: './src/webviews/queryResults/index.tsx', // Query results webview entry point
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'webview-query-results.js',
+  },
+  resolve: {
+    extensions: ['.ts', '.tsx', '.js', '.jsx']
+  },
+  module: {
+    rules: [
+      {
+        test: /\.tsx?$/,
+        exclude: /node_modules/,
+        use: [
+          {
+            loader: 'ts-loader',
+            options: {
+              configFile: 'tsconfig.webview.json'
+            }
+          }
+        ]
+      },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader']
+      }
+    ]
+  },
+  devtool: 'nosources-source-map',
+  infrastructureLogging: {
+    level: 'log',
+  },
+  plugins: [
+    // Define process.env for React and other libraries that expect Node.js globals
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify('development'),
+      'process.env': JSON.stringify({})
+    })
+  ]
+};
+
+module.exports = [ extensionConfig, webviewConfig, queryResultsWebviewConfig ];

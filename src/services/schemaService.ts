@@ -5,6 +5,7 @@
  * Implements caching to avoid redundant queries and improve tree view performance.
  */
 
+import * as vscode from 'vscode';
 import { CassandraClient } from './cassandraClient';
 
 /**
@@ -65,16 +66,27 @@ export class SchemaService {
   constructor(private readonly cassandraClient: CassandraClient) {}
 
   /**
+   * Checks if schema caching is enabled in user configuration.
+   *
+   * @private
+   * @returns true if caching is enabled (default), false otherwise
+   */
+  private isCacheEnabled(): boolean {
+    const config = vscode.workspace.getConfiguration('cassandraLens');
+    return config.get<boolean>('schema.cacheEnabled', true);
+  }
+
+  /**
    * Retrieves all keyspaces from the cluster.
    *
-   * @param filterSystem - If true, filters out system keyspaces (default: true)
+   * @param filterSystem - If true, filters out system keyspaces (default: false)
    * @returns Array of keyspace information, sorted alphabetically
    */
-  async getKeyspaces(filterSystem: boolean = true): Promise<KeyspaceInfo[]> {
+  async getKeyspaces(filterSystem: boolean = false): Promise<KeyspaceInfo[]> {
     const cacheKey = 'keyspaces';
 
-    // Check cache first
-    if (this.cache.has(cacheKey)) {
+    // Check cache first (if caching is enabled)
+    if (this.isCacheEnabled() && this.cache.has(cacheKey)) {
       const cached = this.cache.get(cacheKey);
       return filterSystem ? this.filterSystemKeyspaces(cached) : cached;
     }
@@ -92,8 +104,10 @@ export class SchemaService {
         .filter((ks) => ks.name) // Filter out empty names
         .sort((a, b) => a.name.localeCompare(b.name));
 
-      // Cache the full list
-      this.cache.set(cacheKey, keyspaces);
+      // Cache the full list (if caching is enabled)
+      if (this.isCacheEnabled()) {
+        this.cache.set(cacheKey, keyspaces);
+      }
 
       // Return filtered or full list based on parameter
       return filterSystem ? this.filterSystemKeyspaces(keyspaces) : keyspaces;
@@ -114,8 +128,8 @@ export class SchemaService {
   async getTables(keyspace: string): Promise<TableInfo[]> {
     const cacheKey = `tables:${keyspace}`;
 
-    // Check cache first
-    if (this.cache.has(cacheKey)) {
+    // Check cache first (if caching is enabled)
+    if (this.isCacheEnabled() && this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey);
     }
 
@@ -132,8 +146,10 @@ export class SchemaService {
         .filter((tbl) => tbl.name) // Filter out empty names
         .sort((a, b) => a.name.localeCompare(b.name));
 
-      // Cache the results
-      this.cache.set(cacheKey, tables);
+      // Cache the results (if caching is enabled)
+      if (this.isCacheEnabled()) {
+        this.cache.set(cacheKey, tables);
+      }
 
       return tables;
     } catch (error) {
@@ -154,8 +170,8 @@ export class SchemaService {
   async getColumns(keyspace: string, table: string): Promise<ColumnInfo[]> {
     const cacheKey = `columns:${keyspace}:${table}`;
 
-    // Check cache first
-    if (this.cache.has(cacheKey)) {
+    // Check cache first (if caching is enabled)
+    if (this.isCacheEnabled() && this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey);
     }
 
@@ -182,8 +198,10 @@ export class SchemaService {
           return a.position - b.position;
         });
 
-      // Cache the results
-      this.cache.set(cacheKey, columns);
+      // Cache the results (if caching is enabled)
+      if (this.isCacheEnabled()) {
+        this.cache.set(cacheKey, columns);
+      }
 
       return columns;
     } catch (error) {

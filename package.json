@@ -109,6 +109,24 @@
         "command": "cassandra-lens.refreshNode",
         "title": "CassandraLens: Refresh",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "cassandra-lens.executeQuery",
+        "title": "CassandraLens: Execute Query",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cassandra-lens.newQuery",
+        "title": "CassandraLens: New Query",
+        "icon": "$(new-file)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "cassandra-lens.executeQuery",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "editorTextFocus && editorLangId == cql"
       }
     ],
     "menus": {
@@ -193,6 +211,21 @@
         "contents": "No Cassandra connections found.\n[Add Connection](command:cassandra-lens.addConnection)\nConnect to a Cassandra cluster to explore schemas and run queries."
       }
     ],
+    "languages": [
+      {
+        "id": "cql",
+        "aliases": ["CQL", "Cassandra Query Language"],
+        "extensions": [".cql"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "cql",
+        "scopeName": "source.cql",
+        "path": "./syntaxes/cql.tmLanguage.json"
+      }
+    ],
     "configuration": {
       "title": "CassandraLens",
       "properties": {
@@ -200,6 +233,12 @@
           "type": "array",
           "default": [],
           "description": "Saved Cassandra connection profiles (passwords stored securely in Secret Storage)",
+          "scope": "window"
+        },
+        "cassandraLens.connection.autoConnectOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically connect to the most recently used connection when VS Code starts",
           "scope": "window"
         },
         "cassandraLens.schema.filterSystemKeyspaces": {
@@ -212,6 +251,38 @@
           "type": "boolean",
           "default": true,
           "description": "Enable caching of schema metadata to improve performance",
+          "scope": "window"
+        },
+        "cassandraLens.query.defaultPageSize": {
+          "type": "number",
+          "enum": [100, 250, 500],
+          "default": 100,
+          "description": "Default number of rows to display per page in query results",
+          "enumDescriptions": [
+            "100 rows - Best for quick browsing",
+            "250 rows - Balanced performance",
+            "500 rows - Large datasets"
+          ],
+          "scope": "window"
+        },
+        "cassandraLens.query.completionMessageFormat": {
+          "type": "string",
+          "enum": ["minimal", "detailed", "verbose"],
+          "default": "detailed",
+          "description": "Format of status bar message shown when query execution completes",
+          "enumDescriptions": [
+            "Minimal - Just execution time: '✓ 23ms'",
+            "Detailed - Time and row count: '✓ Query executed (23ms, 15 rows)'",
+            "Verbose - Full details: '✓ Query executed successfully • 15 rows • 23ms'"
+          ],
+          "scope": "window"
+        },
+        "cassandraLens.query.completionMessageDuration": {
+          "type": "number",
+          "default": 3000,
+          "minimum": 1000,
+          "maximum": 10000,
+          "description": "Duration (in milliseconds) to show query completion messages in status bar",
           "scope": "window"
         }
       }

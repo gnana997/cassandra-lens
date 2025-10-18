@@ -62,22 +62,26 @@ export class SchemaCommands {
   }
 
   /**
-   * Opens a query editor with SELECT statement for browsing table data.
-   * TODO: Week 3 will implement actual query execution.
+   * Opens a query editor with SELECT statement for browsing table data
+   * and automatically executes the query.
    */
   async browseTableData(item: TableTreeItem): Promise<void> {
-    const query = `SELECT * FROM ${item.keyspace}.${item.table} LIMIT 100;`;
+    // Read the default page size from user settings
+    const config = vscode.workspace.getConfiguration('cassandraLens.query');
+    const defaultPageSize = config.get<number>('defaultPageSize', 100);
+
+    const query = `SELECT * FROM ${item.keyspace}.${item.table} LIMIT ${defaultPageSize};`;
 
     // Create new untitled document with CQL query
     const doc = await vscode.workspace.openTextDocument({
-      language: 'sql', // Using SQL for syntax highlighting until we have CQL
+      language: 'cql',
       content: query,
     });
 
     await vscode.window.showTextDocument(doc);
-    vscode.window.showInformationMessage(
-      `Query ready. Execute with "Run Query" command (Week 3 feature).`
-    );
+
+    // Auto-execute the query
+    await vscode.commands.executeCommand('cassandra-lens.executeQuery');
   }
 
   /**

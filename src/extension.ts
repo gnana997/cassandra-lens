@@ -16,6 +16,7 @@ import { SchemaService } from './services/schemaService';
 // Import commands
 import { ConnectionCommands } from './commands/connectionCommands';
 import { SchemaCommands } from './commands/schemaCommands';
+import { QueryCommands } from './commands/queryCommands';
 
 // Import UI components
 import { ConnectionStatusBar } from './ui/statusBar';
@@ -101,6 +102,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Create schema commands handler (context menu actions for schema items)
   const schemaCommands = new SchemaCommands(connectionTreeProvider, schemaService);
+
+  // Create query commands handler (query execution and management)
+  const queryCommands = new QueryCommands(connectionManager, context.extensionUri);
 
   // ============================================================================
   // Step 4: Register Commands
@@ -279,6 +283,21 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
+  // Query Commands
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cassandra-lens.executeQuery',
+      () => queryCommands.executeQuery()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cassandra-lens.newQuery',
+      () => queryCommands.newQuery()
+    )
+  );
+
   // ============================================================================
   // Step 5: Auto-Connect to Last Used Connection (Optional)
   // ============================================================================
@@ -286,6 +305,15 @@ export function activate(context: vscode.ExtensionContext) {
   // Load saved connections and optionally auto-connect to the most recently used one
   (async () => {
     try {
+      // Check if auto-connect is enabled in settings
+      const config = vscode.workspace.getConfiguration('cassandraLens');
+      const autoConnect = config.get<boolean>('connection.autoConnectOnStartup', true);
+
+      if (!autoConnect) {
+        console.log('Auto-connect disabled by user configuration.');
+        return;
+      }
+
       const connections = await connectionStorage.loadConnections();
 
       if (connections.length > 0) {
