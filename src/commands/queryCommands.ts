@@ -148,13 +148,14 @@ SELECT * FROM
         })) || [];
 
         // Convert rows to plain objects
-        const rows = result.rows.map((row: any) => {
+        // Note: DDL/DML statements (CREATE, INSERT, UPDATE, DELETE) don't return rows
+        const rows = result.rows?.map((row: any) => {
           const obj: any = {};
           columns.forEach((col: any) => {
             obj[col.name] = row[col.name];
           });
           return obj;
-        });
+        }) || [];
 
         // Build result object
         const queryResult: QueryResult = {
@@ -288,13 +289,14 @@ SELECT * FROM
         })) || [];
 
         // Convert rows to plain objects
-        const rows = result.rows.map((row: any) => {
+        // Note: DDL/DML statements (CREATE, INSERT, UPDATE, DELETE) don't return rows
+        const rows = result.rows?.map((row: any) => {
           const obj: any = {};
           columns.forEach((col: any) => {
             obj[col.name] = row[col.name];
           });
           return obj;
-        });
+        }) || [];
 
         // Build result object
         const queryResult: QueryResult = {

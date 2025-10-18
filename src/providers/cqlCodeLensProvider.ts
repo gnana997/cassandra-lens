@@ -63,6 +63,8 @@ export class CqlCodeLensProvider implements vscode.CodeLensProvider {
 
     const config = vscode.workspace.getConfiguration('cassandraLens.editor');
     const mode = config.get<string>('codeLensMode', 'standard');
+    const fileName = document.fileName.split(/[\\/]/).pop();
+    console.log(`[CQL CodeLens] Mode: "${mode}", File: "${fileName}"`);
 
     if (mode === 'off') {
       return [];
@@ -260,6 +262,35 @@ export class CqlCodeLensProvider implements vscode.CodeLensProvider {
   }
 
   /**
+   * Removes line and block comments from a single line of text.
+   *
+   * @param line - The line to process
+   * @returns Line with comments removed
+   */
+  private removeComments(line: string): string {
+    // Remove line comments (-- to end of line)
+    const withoutLineComments = line.replace(/--.*$/, '');
+
+    // Remove block comments (/* ... */ on same line)
+    const withoutBlockComments = withoutLineComments.replace(/\/\*.*?\*\//g, '');
+
+    return withoutBlockComments.trim();
+  }
+
+  /**
+   * Checks if a line contains a CQL keyword anywhere (not just at start).
+   * More flexible than isValidStatement which requires keyword at start.
+   *
+   * @param line - Line text (should have comments removed first)
+   * @returns True if line contains a CQL keyword
+   */
+  private containsCqlKeyword(line: string): boolean {
+    // Use word boundaries \b to match keywords anywhere in the line
+    const keywords = /\b(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE|USE|BEGIN|APPLY|BATCH|DESCRIBE|DESC|GRANT|REVOKE|LIST)\b/i;
+    return keywords.test(line);
+  }
+
+  /**
    * Provides statement-level CodeLens items (one per CQL statement).
    * Displays "▶ Run" button with optional execution time on the line above each statement.
    *
@@ -269,13 +300,12 @@ export class CqlCodeLensProvider implements vscode.CodeLensProvider {
   private getStatementLevelLenses(document: vscode.TextDocument): vscode.CodeLens[] {
     const lenses: vscode.CodeLens[] = [];
     const statements = this.parseStatementsWithLines(document);
+    console.log(`[CQL CodeLens] Creating lenses for ${statements.length} statements`);
 
     for (const statement of statements) {
-      // Position CodeLens on line immediately above the actual CQL statement
-      // (between comments and the CQL code)
-      // If CQL starts at line 0, place it on line 0
-      const lensLine = statement.cqlStartLine > 0 ? statement.cqlStartLine - 1 : 0;
-      const range = new vscode.Range(lensLine, 0, lensLine, 0);
+      // Place CodeLens at the start of the CQL statement line
+      // VS Code renders it visually "above" the code on that line
+      const range = new vscode.Range(statement.cqlStartLine, 0, statement.cqlStartLine, 0);
 
       // Check for execution time
       const executionRecord = executionTimeTracker.getLastExecution(
@@ -333,9 +363,9 @@ export class CqlCodeLensProvider implements vscode.CodeLensProvider {
       }
 
       // Check for @conn directive
-      const match = line.match(/^--\s*@conn\s+([a-zA-Z0-9_-]+)/i);
+      const match = line.match(/^--\s*@conn\s+(.+)$/i);
       if (match) {
-        return match[1];
+        return match[1].trim();
       }
     }
 
@@ -345,124 +375,159 @@ export class CqlCodeLensProvider implements vscode.CodeLensProvider {
   /**
    * Parses CQL statements with line tracking for CodeLens positioning.
    *
-   * Similar to parseStatements(), but tracks the start and end line numbers
-   * for each statement to enable accurate CodeLens placement.
+   * Uses a line-by-line document parsing approach for accurate line number tracking.
+   * This method directly uses VS Code's document.lineAt() to avoid offset calculation errors.
    *
    * @param document - The document to parse
-   * @returns Array of statement information with line numbers (0-indexed)
+   * @returns Array of statement information with accurate line numbers (0-indexed)
    */
   private parseStatementsWithLines(document: vscode.TextDocument): StatementInfo[] {
-    const text = document.getText();
     const statements: StatementInfo[] = [];
-    let currentStatement = '';
-    let currentLine = 0;
+
+    // State tracking
+    let inStatement = false;
     let statementStartLine = -1;
+    let cqlStartLine = -1;
+    let statementLines: string[] = [];
+
+    // String literal tracking
     let inString = false;
     let stringChar = '';
 
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      const prevChar = i > 0 ? text[i - 1] : '';
+    // Block comment tracking (for multi-line /* */ comments)
+    let blockCommentDepth = 0;
 
-      // Track newlines
-      if (char === '\n') {
-        currentLine++;
-      }
+    for (let lineNum = 0; lineNum < document.lineCount; lineNum++) {
+      const originalLine = document.lineAt(lineNum).text;
+      let processedLine = originalLine;
 
-      // Track string boundaries (single and double quotes)
-      if ((char === "'" || char === '"') && prevChar !== '\\') {
+      // Process line character-by-character to handle strings and comments
+      let foundSemicolon = false;
+
+      for (let i = 0; i < originalLine.length; i++) {
+        const char = originalLine[i];
+        const nextChar = i < originalLine.length - 1 ? originalLine[i + 1] : '';
+        const prevChar = i > 0 ? originalLine[i - 1] : '';
+
+        // Handle block comment start (/*) and end (*/)
         if (!inString) {
-          inString = true;
-          stringChar = char;
-        } else if (char === stringChar) {
-          inString = false;
-          stringChar = '';
-        }
-      }
-
-      // Split on semicolons outside of strings
-      if (char === ';' && !inString) {
-        const trimmed = currentStatement.trim();
-        if (trimmed && statementStartLine >= 0) {
-          // Filter out comment-only statements
-          const withoutComments = trimmed
-            .replace(/--.*$/gm, '')
-            .replace(/\/\*[\s\S]*?\*\//g, '')
-            .trim();
-
-          if (withoutComments.length > 0 && this.isValidStatement(withoutComments)) {
-            // Find the first line with actual CQL code (not just comments)
-            const cqlStartLine = this.findCqlStartLine(trimmed, statementStartLine);
-
-            statements.push({
-              text: trimmed,
-              startLine: statementStartLine,
-              endLine: currentLine,
-              cqlStartLine
-            });
+          if (char === '/' && nextChar === '*') {
+            blockCommentDepth++;
+            i++; // Skip the asterisk
+            continue;
+          }
+          if (char === '*' && nextChar === '/' && blockCommentDepth > 0) {
+            blockCommentDepth--;
+            i++; // Skip the slash
+            continue;
           }
         }
-        currentStatement = '';
-        statementStartLine = -1; // Reset for next statement
-      } else {
-        // Track start of statement (first non-whitespace character)
-        if (statementStartLine === -1 && char.trim()) {
-          statementStartLine = currentLine;
+
+        // Handle string boundaries (ignore if inside block comment)
+        if (blockCommentDepth === 0) {
+          if ((char === "'" || char === '"') && prevChar !== '\\') {
+            if (!inString) {
+              inString = true;
+              stringChar = char;
+            } else if (char === stringChar) {
+              inString = false;
+              stringChar = '';
+            }
+          }
         }
-        currentStatement += char;
+
+        // Handle semicolon (statement terminator) - only if outside strings and comments
+        if (char === ';' && !inString && blockCommentDepth === 0) {
+          foundSemicolon = true;
+          console.log(`[CQL Parser] ; Semicolon found at line ${lineNum}, col ${i}`);
+          break; // Stop processing this line
+        }
+      }
+
+      // Check if this line starts a new statement
+      // Remove comments to check for CQL keywords
+      const lineWithoutComments = this.removeComments(originalLine);
+
+      if (!inStatement && lineWithoutComments.length > 0 && this.containsCqlKeyword(lineWithoutComments)) {
+        // Start of new statement detected
+        inStatement = true;
+        statementStartLine = lineNum;
+        cqlStartLine = lineNum; // Direct document line number - no offset calculations!
+        console.log(`[CQL Parser] → New statement started at line ${lineNum}: ${lineWithoutComments.substring(0, 40).replace(/\n/g, ' ')}...`);
+      }
+
+      // Collect line if we're inside a statement
+      if (inStatement) {
+        statementLines.push(originalLine);
+      }
+
+      // Finalize statement if semicolon found
+      if (foundSemicolon && inStatement) {
+        const statementText = statementLines.join('\n');
+
+        // Validate that the statement has actual CQL code (not just comments)
+        const withoutComments = statementText
+          .replace(/--.*$/gm, '')
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .trim();
+
+        const trimmedStatement = withoutComments.trim();
+        if (trimmedStatement.length > 0 && this.isValidStatement(trimmedStatement)) {
+          statements.push({
+            text: statementText,
+            startLine: statementStartLine,
+            endLine: lineNum,
+            cqlStartLine: cqlStartLine
+          });
+          console.log(`[CQL Parser] ✓ Statement finalized at line ${lineNum}: ${trimmedStatement.substring(0, 40).replace(/\n/g, ' ')}...`);
+        } else {
+          console.log(`[CQL Parser] ✗ Statement skipped (invalid) at line ${lineNum}`);
+        }
+
+        // Reset state for next statement
+        inStatement = false;
+        statementLines = [];
+        statementStartLine = -1;
+        cqlStartLine = -1;
+      }
+
+      // CRITICAL FIX: Reset string state at end of each line
+      // SQL/CQL strings cannot span multiple lines, so inString must be false at line boundaries
+      // If we don't reset this, a mismatched quote will corrupt parsing of the entire rest of the file
+      if (inString) {
+        console.log(`[CQL Parser] ⚠️  Line ${lineNum}: String state leaked (inString=true at end of line) - RESETTING`);
+        inString = false;
+        stringChar = '';
       }
     }
 
-    // Add final statement if it doesn't end with semicolon
-    const trimmed = currentStatement.trim();
-    if (trimmed && statementStartLine >= 0) {
-      const withoutComments = trimmed
+    // Handle statement without ending semicolon (e.g., last statement in file)
+    if (inStatement && statementLines.length > 0) {
+      const statementText = statementLines.join('\n');
+
+      const withoutComments = statementText
         .replace(/--.*$/gm, '')
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .trim();
 
-      if (withoutComments.length > 0 && this.isValidStatement(withoutComments)) {
-        // Find the first line with actual CQL code (not just comments)
-        const cqlStartLine = this.findCqlStartLine(trimmed, statementStartLine);
-
+      const trimmedStatement = withoutComments.trim();
+      if (trimmedStatement.length > 0 && this.isValidStatement(trimmedStatement)) {
         statements.push({
-          text: trimmed,
+          text: statementText,
           startLine: statementStartLine,
-          endLine: currentLine,
-          cqlStartLine
+          endLine: document.lineCount - 1,
+          cqlStartLine: cqlStartLine
         });
       }
     }
 
+    console.log(`[CQL Parser] Found ${statements.length} statements`);
+    statements.forEach((s, i) => {
+      const preview = s.text.substring(0, 50).replace(/\n/g, ' ');
+      console.log(`  ${i + 1}. Line ${s.cqlStartLine}: ${preview}...`);
+    });
+
     return statements;
   }
 
-  /**
-   * Finds the first line in a statement that contains actual CQL code (not just comments).
-   *
-   * @param statementText - The full statement text (may include comments)
-   * @param baseLineNumber - The line number where the statement starts in the document
-   * @returns The line number where actual CQL code begins
-   */
-  private findCqlStartLine(statementText: string, baseLineNumber: number): number {
-    const lines = statementText.split('\n');
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      // Remove comments from this line
-      const withoutComments = line
-        .replace(/--.*$/, '')        // Remove line comments
-        .replace(/\/\*[\s\S]*?\*\//g, '')  // Remove block comments
-        .trim();
-
-      // If this line has non-whitespace content after removing comments, it's the CQL start
-      if (withoutComments.length > 0) {
-        return baseLineNumber + i;
-      }
-    }
-
-    // Fallback: if no CQL code found (shouldn't happen), return the base line
-    return baseLineNumber;
-  }
 }
