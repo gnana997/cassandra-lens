@@ -9,17 +9,21 @@
 
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../services/connectionManager';
+import { ConnectionStorage } from '../services/connectionStorage';
 import { QueryResultsPanel, QueryResult, QueryError } from '../webviews/QueryResultsPanel';
+import { executionTimeTracker } from '../services/executionTimeTracker';
 
 export class QueryCommands {
   /**
    * Creates a new QueryCommands instance.
    *
    * @param connectionManager - The connection manager for executing queries
+   * @param connectionStorage - The connection storage for looking up connections by name
    * @param extensionUri - The extension URI for creating webview panels
    */
   constructor(
     private readonly connectionManager: ConnectionManager,
+    private readonly connectionStorage: ConnectionStorage,
     private readonly extensionUri: vscode.Uri
   ) {}
 
@@ -96,10 +100,27 @@ SELECT * FROM
     // Show or create results panel
     const resultsPanel = QueryResultsPanel.createOrShow(this.extensionUri);
 
+    // Track total execution time for file-level CodeLens
+    let totalExecutionTime = 0;
+
     // Execute statements sequentially
     for (let i = 0; i < statements.length; i++) {
       const statement = statements[i];
       const isLastStatement = i === statements.length - 1;
+
+      // Check for @conn directive before this statement
+      const targetConnectionName = this.findConnectionDirectiveInDocument(editor.document, statement);
+
+      if (targetConnectionName) {
+        const currentConnectionName = this.connectionManager.getActiveConnectionName();
+        const shouldProceed = await this.handleConnectionSwitch(targetConnectionName, currentConnectionName);
+
+        if (!shouldProceed) {
+          // User cancelled the connection switch
+          vscode.window.showInformationMessage('Query execution cancelled by user.');
+          break;
+        }
+      }
 
       // Show executing state
       resultsPanel.showExecuting(statement);
@@ -113,6 +134,9 @@ SELECT * FROM
         }
         const result = await client.execute(statement);
         const executionTime = Date.now() - startTime;
+
+        // Accumulate total execution time
+        totalExecutionTime += executionTime;
 
         // Extract table path from query (if SELECT statement)
         const tablePath = this.extractTablePath(statement);
@@ -180,6 +204,257 @@ SELECT * FROM
         // Stop on first error
         break;
       }
+    }
+
+    // Record total file execution time if at least one statement executed
+    if (totalExecutionTime > 0) {
+      executionTimeTracker.recordFileExecution(editor.document.uri.toString(), totalExecutionTime);
+    }
+  }
+
+  /**
+   * Executes a specific CQL statement at the given line range.
+   * Called from CodeLens "Run" button for individual statements.
+   *
+   * @param uriString - Document URI as string
+   * @param startLine - Statement start line (0-indexed)
+   * @param endLine - Statement end line (0-indexed)
+   */
+  async executeStatementAtLine(uriString: string, startLine: number, endLine: number): Promise<void> {
+    try {
+      // Parse URI and find document
+      const uri = vscode.Uri.parse(uriString);
+      const document = await vscode.workspace.openTextDocument(uri);
+
+      // Extract statement text from line range
+      const range = new vscode.Range(startLine, 0, endLine, document.lineAt(endLine).text.length);
+      let statementText = document.getText(range).trim();
+
+      // Remove trailing semicolon if present
+      if (statementText.endsWith(';')) {
+        statementText = statementText.slice(0, -1).trim();
+      }
+
+      if (!statementText) {
+        vscode.window.showWarningMessage('No statement text found at specified line range.');
+        return;
+      }
+
+      // Check connection
+      if (!this.connectionManager.isConnected()) {
+        const connect = await vscode.window.showWarningMessage(
+          'Not connected to a Cassandra cluster. Connect first?',
+          'Connect'
+        );
+        if (connect === 'Connect') {
+          await vscode.commands.executeCommand('cassandra-lens.switchConnection');
+        }
+        return;
+      }
+
+      // Check for @conn directive
+      const targetConnectionName = this.findConnectionDirectiveInDocument(document, statementText);
+      if (targetConnectionName) {
+        const currentConnectionName = this.connectionManager.getActiveConnectionName();
+        const shouldProceed = await this.handleConnectionSwitch(targetConnectionName, currentConnectionName);
+
+        if (!shouldProceed) {
+          vscode.window.showInformationMessage('Query execution cancelled by user.');
+          return;
+        }
+      }
+
+      // Show or create results panel
+      const resultsPanel = QueryResultsPanel.createOrShow(this.extensionUri);
+      resultsPanel.showExecuting(statementText);
+
+      try {
+        // Execute and measure time
+        const startTime = Date.now();
+        const client = this.connectionManager.getActiveClient();
+        if (!client) {
+          throw new Error('Not connected to cluster');
+        }
+        const result = await client.execute(statementText);
+        const executionTime = Date.now() - startTime;
+
+        // Extract table path from query
+        const tablePath = this.extractTablePath(statementText);
+
+        // Format columns metadata
+        const columns = result.columns?.map((col: any) => ({
+          name: col.name,
+          type: col.type?.options?.type || col.type?.code?.toString() || 'unknown'
+        })) || [];
+
+        // Convert rows to plain objects
+        const rows = result.rows.map((row: any) => {
+          const obj: any = {};
+          columns.forEach((col: any) => {
+            obj[col.name] = row[col.name];
+          });
+          return obj;
+        });
+
+        // Build result object
+        const queryResult: QueryResult = {
+          columns,
+          rows,
+          executionTime,
+          tablePath,
+          query: statementText
+        };
+
+        // Record execution in tracker
+        executionTimeTracker.recordExecution(uriString, startLine, endLine, {
+          executionTime,
+          rowCount: rows.length,
+          timestamp: new Date(),
+          success: true
+        });
+
+        // Show results
+        resultsPanel.showResults(queryResult);
+
+        // Show success message
+        const message = this.getCompletionMessage(executionTime, rows.length);
+        this.showStatusBarMessage(message);
+
+        // Refresh CodeLens to show updated execution time
+        vscode.commands.executeCommand('vscode.executeCodeLensProvider', uri);
+
+      } catch (error) {
+        // Handle execution error
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        const suggestion = this.getSuggestionForError(errorMessage);
+
+        const queryError: QueryError = {
+          message: errorMessage,
+          suggestion,
+          query: statementText
+        };
+
+        // Record failed execution
+        executionTimeTracker.recordExecution(uriString, startLine, endLine, {
+          executionTime: 0,
+          rowCount: 0,
+          timestamp: new Date(),
+          success: false
+        });
+
+        resultsPanel.showError(queryError);
+
+        // Show error notification
+        vscode.window.showErrorMessage(
+          `Query execution failed: ${errorMessage.substring(0, 100)}${errorMessage.length > 100 ? '...' : ''}`
+        );
+
+        // Refresh CodeLens to show error status
+        vscode.commands.executeCommand('vscode.executeCodeLensProvider', uri);
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to execute statement: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Finds a connection directive (-- @conn connectionName) in the document before a statement.
+   * Looks backwards from the statement start position up to 10 lines or until a blank line.
+   *
+   * @param document - The document to search
+   * @param statementText - The statement text to find
+   * @returns Connection name if found, undefined otherwise
+   */
+  private findConnectionDirectiveInDocument(
+    document: vscode.TextDocument,
+    statementText: string
+  ): string | undefined {
+    const text = document.getText();
+    const statementIndex = text.indexOf(statementText);
+
+    if (statementIndex === -1) {
+      return undefined;
+    }
+
+    // Find the line number where this statement starts
+    const beforeStatement = text.substring(0, statementIndex);
+    const startLine = beforeStatement.split('\n').length - 1;
+
+    // Look backwards up to 10 lines for @conn directive
+    for (let i = startLine; i >= 0 && i >= startLine - 10; i--) {
+      const line = document.lineAt(i).text.trim();
+
+      // Stop at blank lines
+      if (line === '') {
+        break;
+      }
+
+      // Check for @conn directive
+      const match = line.match(/^--\s*@conn\s+([a-zA-Z0-9_-]+)/i);
+      if (match) {
+        return match[1];
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Handles connection switching based on @conn directive.
+   * Prompts user if warnOnConnectionSwitch is enabled.
+   *
+   * @param targetConnectionName - Name of connection to switch to
+   * @param currentConnectionName - Name of currently active connection
+   * @returns True if switch was successful or user chose to proceed, false if cancelled
+   */
+  private async handleConnectionSwitch(
+    targetConnectionName: string,
+    currentConnectionName: string | null
+  ): Promise<boolean> {
+    // Check if target connection exists
+    const targetProfile = await this.connectionStorage.findConnectionByName(targetConnectionName);
+
+    if (!targetProfile) {
+      vscode.window.showErrorMessage(
+        `Connection '${targetConnectionName}' not found. Please check your @conn directive.`
+      );
+      return false;
+    }
+
+    // Check if we're already on the target connection
+    if (currentConnectionName === targetConnectionName) {
+      return true; // No switch needed
+    }
+
+    // Check if user wants to be warned
+    const config = vscode.workspace.getConfiguration('cassandraLens.editor');
+    const warnOnSwitch = config.get<boolean>('warnOnConnectionSwitch', true);
+
+    if (warnOnSwitch) {
+      const action = await vscode.window.showWarningMessage(
+        `This statement uses connection '${targetConnectionName}' but you're connected to '${currentConnectionName || 'no connection'}'. Switch and run?`,
+        { modal: false },
+        'Switch & Run',
+        'Cancel'
+      );
+
+      if (action !== 'Switch & Run') {
+        return false; // User cancelled
+      }
+    }
+
+    // Attempt to switch connection
+    try {
+      await this.connectionManager.switchConnection(targetProfile);
+      vscode.window.showInformationMessage(`Switched to connection: ${targetConnectionName}`);
+      return true;
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to switch to connection '${targetConnectionName}': ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      return false;
     }
   }
 

@@ -284,6 +284,25 @@
           "maximum": 10000,
           "description": "Duration (in milliseconds) to show query completion messages in status bar",
           "scope": "window"
+        },
+        "cassandraLens.editor.codeLensMode": {
+          "type": "string",
+          "enum": ["off", "minimal", "standard", "detailed"],
+          "default": "detailed",
+          "description": "Control CodeLens buttons displayed in CQL files",
+          "enumDescriptions": [
+            "Off - No CodeLens (keyboard shortcuts only)",
+            "Minimal - '▶ Run All' button + connection indicator",
+            "Standard - Minimal + multi-connection warning",
+            "Detailed - File-level + per-statement buttons (Phase 2)"
+          ],
+          "scope": "window"
+        },
+        "cassandraLens.editor.warnOnConnectionSwitch": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show confirmation prompt when @conn directive attempts to switch connections",
+          "scope": "window"
         }
       }
     }

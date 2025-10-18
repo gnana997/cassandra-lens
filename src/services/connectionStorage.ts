@@ -184,6 +184,18 @@ export class ConnectionStorage {
   }
 
   /**
+   * Finds a connection profile by its name.
+   * Useful for @conn directives that reference connections by name.
+   *
+   * @param name - Connection name to search for
+   * @returns The connection profile, or undefined if not found
+   */
+  async findConnectionByName(name: string): Promise<ConnectionProfile | undefined> {
+    const profiles = await this.loadConnections();
+    return profiles.find((p) => p.name === name);
+  }
+
+  /**
    * Updates an existing connection profile.
    *
    * @param profile - Updated profile (must have existing ID)

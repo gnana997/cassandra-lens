@@ -214,6 +214,15 @@ export class ConnectionManager extends EventEmitter {
   }
 
   /**
+   * Gets the name of the currently active connection.
+   *
+   * @returns Connection name, or null if not connected
+   */
+  getActiveConnectionName(): string | null {
+    return this.activeProfile?.name || null;
+  }
+
+  /**
    * Switches to a different connection.
    *
    * Convenience method that disconnects current connection

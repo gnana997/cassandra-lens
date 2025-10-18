@@ -23,6 +23,7 @@ import { ConnectionStatusBar } from './ui/statusBar';
 
 // Import providers
 import { ConnectionTreeProvider } from './providers/connectionTreeProvider';
+import { CqlCodeLensProvider } from './providers/cqlCodeLensProvider';
 import { ConnectionProfile } from './types/connection';
 
 /**
@@ -104,7 +105,13 @@ export function activate(context: vscode.ExtensionContext) {
   const schemaCommands = new SchemaCommands(connectionTreeProvider, schemaService);
 
   // Create query commands handler (query execution and management)
-  const queryCommands = new QueryCommands(connectionManager, context.extensionUri);
+  const queryCommands = new QueryCommands(connectionManager, connectionStorage, context.extensionUri);
+
+  // Create and register CodeLens provider for CQL files
+  const codeLensProvider = new CqlCodeLensProvider(connectionManager);
+  context.subscriptions.push(
+    vscode.languages.registerCodeLensProvider({ language: 'cql' }, codeLensProvider)
+  );
 
   // ============================================================================
   // Step 4: Register Commands
@@ -288,6 +295,14 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       'cassandra-lens.executeQuery',
       () => queryCommands.executeQuery()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cassandra-lens.executeStatementAtLine',
+      (uriString: string, startLine: number, endLine: number) =>
+        queryCommands.executeStatementAtLine(uriString, startLine, endLine)
     )
   );
 
