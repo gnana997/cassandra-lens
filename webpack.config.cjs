@@ -11,7 +11,7 @@ const webpack = require('webpack');
 /** @type WebpackConfig */
 const extensionConfig = {
   target: 'node', // VS Code extensions run in a Node.js-context 📖 -> https://webpack.js.org/configuration/node/
-	mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
+	mode: 'production', // Use production mode for optimizations (minification, tree shaking)
 
   entry: './src/extension.ts', // the entry point of this extension, 📖 -> https://webpack.js.org/configuration/entry-context/
   output: {
@@ -59,7 +59,7 @@ const extensionConfig = {
 /** @type WebpackConfig */
 const webviewConfig = {
   target: 'web', // Webviews run in a browser context
-  mode: 'none',
+  mode: 'production',
 
   entry: './src/webviews/connectionForm/index.tsx', // React app entry point
   output: {
@@ -96,16 +96,18 @@ const webviewConfig = {
   plugins: [
     // Define process.env for React and other libraries that expect Node.js globals
     new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify('development'),
-      'process.env': JSON.stringify({})
+      'process.env.NODE_ENV': JSON.stringify('production')
     })
-  ]
+  ],
+  performance: {
+    hints: false // Suppress size warnings - React webviews are naturally larger
+  }
 };
 
 /** @type WebpackConfig */
 const queryResultsWebviewConfig = {
   target: 'web', // Webviews run in a browser context
-  mode: 'none',
+  mode: 'production',
 
   entry: './src/webviews/queryResults/index.tsx', // Query results webview entry point
   output: {
@@ -142,10 +144,12 @@ const queryResultsWebviewConfig = {
   plugins: [
     // Define process.env for React and other libraries that expect Node.js globals
     new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify('development'),
-      'process.env': JSON.stringify({})
+      'process.env.NODE_ENV': JSON.stringify('production')
     })
-  ]
+  ],
+  performance: {
+    hints: false // Suppress size warnings - React webviews are naturally larger
+  }
 };
 
 module.exports = [ extensionConfig, webviewConfig, queryResultsWebviewConfig ];
