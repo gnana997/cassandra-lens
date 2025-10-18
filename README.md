@@ -7,9 +7,6 @@
 
 **Query, explore, and manage Apache Cassandra databases directly from Visual Studio Code.**
 
-<!-- PLACEHOLDER: Hero image showing full VS Code window with query execution -->
-<!-- ![CassandraLens Hero](images/hero-demo.gif) -->
-
 > **⚠️ Early Access - Version 0.1.0**: This is the initial public release with core functionality. We're actively developing new features and appreciate your feedback!
 
 ---
@@ -31,9 +28,6 @@ CassandraLens brings powerful Apache Cassandra database management capabilities 
 ### 🚀 CQL Query Execution
 Execute CQL queries with rich syntax highlighting and inline results.
 
-<!-- PLACEHOLDER: GIF showing query typed, Ctrl+Enter pressed, results appearing -->
-<!-- ![Query Execution](images/query-execution.gif) -->
-
 - **Keyboard Shortcut**: `Ctrl+Enter` (Windows/Linux) or `Cmd+Enter` (macOS)
 - **Run All Queries**: Execute entire file with `▶ Run All` button
 - **Per-Statement Execution**: Click `▶ Run` button on individual statements
@@ -44,9 +38,6 @@ Execute CQL queries with rich syntax highlighting and inline results.
 ### 📊 Interactive Query Results
 View and explore query results in a clean, tabular interface.
 
-<!-- PLACEHOLDER: Screenshot of query results panel showing table data -->
-<!-- ![Query Results](images/query-results.png) -->
-
 - **Pagination**: Navigate large result sets with configurable page sizes (100/250/500 rows)
 - **Column Metadata**: See data types and column information
 - **Copy-Friendly**: Easy selection and copying of result data
@@ -54,9 +45,6 @@ View and explore query results in a clean, tabular interface.
 
 ### 🗂️ Schema Explorer
 Browse your Cassandra database structure in an intuitive tree view.
-
-<!-- PLACEHOLDER: Screenshot of sidebar with keyspaces, tables, columns expanded -->
-<!-- ![Schema Explorer](images/schema-explorer.png) -->
 
 - **Keyspace Navigation**: Expand keyspaces to view tables and user-defined types
 - **Table Inspection**: See all columns with data types and key designations
@@ -68,9 +56,6 @@ Browse your Cassandra database structure in an intuitive tree view.
 ### 🔌 Connection Management
 Save and manage multiple Cassandra cluster connections.
 
-<!-- PLACEHOLDER: Screenshot of connection dialog/form -->
-<!-- ![Connection Manager](images/connection-manager.png) -->
-
 - **Multiple Connections**: Save unlimited connection profiles
 - **Secure Password Storage**: Credentials stored in VS Code's secure storage
 - **Quick Switching**: Switch between clusters with Command Palette
@@ -80,9 +65,6 @@ Save and manage multiple Cassandra cluster connections.
 
 ### ⚡ IntelliSense & CodeLens
 Smart code assistance for CQL queries.
-
-<!-- PLACEHOLDER: Screenshot of autocomplete dropdown showing CQL keywords -->
-<!-- ![IntelliSense](images/intellisense.png) -->
 
 - **Keyword Completion**: Intelligent suggestions for CQL commands
 - **Syntax Highlighting**: Full CQL language support
@@ -139,16 +121,10 @@ code --install-extension gnana997.cassandra-lens
 
 ### 1. Add Your First Connection
 
-<!-- PLACEHOLDER: Screenshot of "Add Connection" button in sidebar -->
-<!-- ![Add Connection](images/add-connection-step.png) -->
-
 - Click the **+** icon in the CassandraLens sidebar
 - Or run command: `CassandraLens: Add Connection`
 
 ### 2. Configure Connection
-
-<!-- PLACEHOLDER: Screenshot of connection form filled out -->
-<!-- ![Configure Connection](images/connection-form.png) -->
 
 Enter your cluster details:
 - **Name**: "My Cluster"
@@ -159,24 +135,15 @@ Enter your cluster details:
 
 ### 3. Connect
 
-<!-- PLACEHOLDER: Screenshot of connected cluster in sidebar -->
-<!-- ![Connected](images/connected-cluster.png) -->
-
 - Click **Save** to create the connection
 - Click **Connect** or right-click → **Connect to Connection**
 
 ### 4. Browse Schema
 
-<!-- PLACEHOLDER: Screenshot of expanded keyspace showing tables -->
-<!-- ![Browse Schema](images/browse-schema.png) -->
-
 - Expand your keyspace in the tree view
 - Explore tables and columns
 
 ### 5. Run Your First Query
-
-<!-- PLACEHOLDER: Screenshot of CQL query in editor -->
-<!-- ![First Query](images/first-query.png) -->
 
 - Create a new `.cql` file or click **New Query**
 - Type your CQL query
