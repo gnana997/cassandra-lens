@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🙏 Ask a Question
+    url: https://github.com/gnana997/cassandra-lens/discussions/new?category=q-a
+    about: Ask usage questions, get help with CQL queries, or troubleshoot connection issues
+  - name: 💡 Share an Idea
+    url: https://github.com/gnana997/cassandra-lens/discussions/new?category=ideas
+    about: Suggest features or improvements through Discussions
+  - name: ⭐ General Feedback
+    url: https://github.com/gnana997/cassandra-lens/discussions/new?category=feedback
+    about: Share your experience using CassandraLens
+  - name: 📖 Documentation
+    url: https://github.com/gnana997/cassandra-lens#readme
+    about: View the README and documentation

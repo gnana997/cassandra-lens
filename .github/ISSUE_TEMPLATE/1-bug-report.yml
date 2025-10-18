@@ -1,0 +1,126 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in CassandraLens
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the form below to help us investigate and fix the issue.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight Checklist
+      description: Please ensure you've completed these steps before submitting
+      options:
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: I am using the latest version of CassandraLens
+          required: true
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is
+      placeholder: "Example: When I try to browse a table with a clustering key, the query results panel shows an error instead of data."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Connect to Cassandra cluster at '...'
+        2. Navigate to keyspace '...'
+        3. Click 'Browse Table Data' on table '...'
+        4. See error in query results panel
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: "Example: The table data should display in a paginated results view."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: "Example: An error message appears: 'Invalid query syntax...'"
+    validations:
+      required: true
+
+  - type: input
+    id: vscode-version
+    attributes:
+      label: VS Code Version
+      description: "You can find this in Help > About"
+      placeholder: "Example: 1.85.0"
+    validations:
+      required: true
+
+  - type: input
+    id: extension-version
+    attributes:
+      label: CassandraLens Version
+      description: "You can find this in the Extensions view"
+      placeholder: "Example: 0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: cassandra-version
+    attributes:
+      label: Cassandra Version
+      description: "What version of Cassandra are you connecting to?"
+      placeholder: "Example: 4.1.3"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Ubuntu / Debian
+        - Fedora / RHEL / CentOS
+        - Other Linux
+        - Other (please specify in Additional Context)
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain the problem
+      placeholder: "Drag and drop images here, or paste image URLs"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Messages / Logs
+      description: "Include any error messages from VS Code's Output panel (View > Output > CassandraLens)"
+      placeholder: "Paste error messages or stack traces here"
+      render: shell
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information about the problem
+      placeholder: "Example: This only happens when connecting to a cluster with authentication enabled."

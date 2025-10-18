@@ -166,10 +166,101 @@ button.primary {
 - **Accessibility**: Provide proper labels and keyboard navigation
 - **Validation**: Validate on both webview side (UX) and extension side (security)
 
+---
+
+### Query Results Webview
+**Purpose**: Display CQL query execution results in a tabular, paginated format
+
+**Files**:
+- **`QueryResultsPanel.ts`** - Webview panel manager (extension side)
+- **`queryResults/App.tsx`** - React application with results table and pagination
+- **`queryResults/index.tsx`** - React entry point
+- **`queryResults/types.ts`** - TypeScript interfaces for results data
+- **`queryResults/utils/formatters.ts`** - Data type-aware cell formatters
+
+**Features**:
+- **Tabular Display**: Results shown in sortable table with column headers
+- **Pagination**: Configurable page size (100/250/500 rows per page)
+- **Column Sorting**: Click column headers to sort ascending/descending
+- **Data Formatting**: Type-aware formatting for timestamps, UUIDs, collections, etc.
+- **Multi-statement Support**: Shows results for each statement separately with execution time
+- **Error Display**: Pretty-printed error messages with stack traces
+- **Export to Clipboard**: Copy results as JSON or tab-delimited text
+- **Execution Metadata**: Shows row count, execution time, query text
+- **Responsive Design**: Adapts to VS Code theme (light/dark)
+
+**Message Passing**:
+
+**Extension → Webview:**
+```typescript
+// Send query results
+panel.webview.postMessage({
+  type: 'queryResult',
+  result: {
+    query: 'SELECT * FROM users LIMIT 10;',
+    rows: [...],
+    columns: ['id', 'name', 'email'],
+    rowCount: 10,
+    executionTime: 23
+  }
+});
+
+// Send error
+panel.webview.postMessage({
+  type: 'queryError',
+  error: {
+    message: 'Keyspace not found',
+    query: 'SELECT * FROM invalid;',
+    stack: '...'
+  }
+});
+```
+
+**Webview → Extension:**
+```typescript
+// Request export
+window.vscodeApi.postMessage({
+  type: 'export',
+  format: 'csv' | 'json'
+});
+```
+
+**Data Type Formatting**:
+- **Timestamps**: Human-readable format with ISO fallback
+- **UUIDs**: Shortened display with full value on hover
+- **Collections**: JSON.stringify with syntax highlighting
+- **Nulls**: Italic "null" text
+- **Large numbers**: Comma-separated thousands
+- **Booleans**: Colored true/false badges
+
+**Pagination Settings** (`cassandraLens.query.defaultPageSize`):
+- **100 rows** (default) - Best for quick browsing
+- **250 rows** - Balanced performance
+- **500 rows** - Large datasets
+
+**Usage Pattern**:
+```typescript
+// In QueryCommands
+const result = await cassandraClient.execute(query);
+
+QueryResultsPanel.createOrShow(
+  extensionUri,
+  {
+    query,
+    rows: result.rows,
+    columns: result.columns.map(c => c.name),
+    rowCount: result.rowCount,
+    executionTime: 23
+  }
+);
+```
+
+---
+
 ## Future Enhancements
 
 Future webviews may include:
-- **Query Editor** - Interactive CQL query editor with results display
-- **Data Browser** - Spreadsheet-like table data viewer with CRUD operations
+- **Data Browser** - Spreadsheet-like table data viewer with inline CRUD operations
 - **Cluster Status** - Visual cluster topology and node status dashboard
 - **Query History** - Searchable query history with re-run functionality
+- **Schema Designer** - Visual tool for designing tables with partition/clustering keys

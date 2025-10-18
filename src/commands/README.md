@@ -113,6 +113,50 @@ Commands are actions that users can trigger from:
 - Triggered from context menu on any schema item
 - More efficient than refreshing entire tree
 
+---
+
+### QueryCommands
+- **File**: `queryCommands.ts`
+- **Purpose**: Handles CQL query execution and query file management
+- **Dependencies**: ConnectionManager (for execution), ConnectionStorage (for @conn directive), ExtensionUri (for webview panel)
+
+#### Commands Implemented:
+
+**`cassandra-lens.executeQuery`**
+- Executes CQL queries from the active editor
+- **Keybinding**: Ctrl+Enter (Windows/Linux) or Cmd+Enter (Mac)
+- **Scope**: Executes selected text if selection exists, otherwise entire file
+- **Multi-statement support**: Handles semicolon-separated statements sequentially
+- **@conn directive**: Supports `-- @conn MyConnection` to specify connection
+- **Connection validation**: Checks for active connection before execution
+- **Result display**: Opens QueryResultsPanel webview with results
+- **Error handling**: Displays error messages with query context
+- **Features**:
+  - Tracks execution time for CodeLens display
+  - Shows progress notification during execution
+  - Supports pagination settings from configuration
+  - Handles both read and write queries
+
+**`cassandra-lens.newQuery`**
+- Creates a new untitled document with CQL language mode
+- Pre-fills with template:
+  ```cql
+  -- New CQL Query
+  -- Press Ctrl+Enter (Cmd+Enter on Mac) to execute
+
+  SELECT * FROM
+  ```
+- Opens document in editor automatically
+- Triggered from Command Palette or custom buttons
+
+**`cassandra-lens.executeStatementAtLine`**
+- Executes a specific CQL statement at given line range
+- Used by CodeLens "Run" buttons (detailed mode)
+- Parameters: uriString, startLine, endLine
+- Parses and extracts single statement from range
+- Shows results in QueryResultsPanel
+- Used for granular statement execution
+
 ## Command Registration
 
 Commands are registered in `extension.ts` during activation:

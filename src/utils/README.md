@@ -8,11 +8,48 @@ Utilities are reusable functions and classes that don't fit into specific servic
 
 ## Current Status
 
-**This directory is currently empty.** All validation logic is currently implemented inline within React components.
+This directory contains utility services that don't fit into specific providers or core services.
 
-### Previous Content (Removed)
-- ~~`multiStepInput.ts`~~ - Removed (replaced by React-based webview form)
-- ~~`validators.ts`~~ - Removed (validation logic moved inline to React App.tsx)
+## Currently Implemented Utilities
+
+### FeedbackManager
+- **File**: `feedbackManager.ts`
+- **Purpose**: User feedback collection system for CassandraLens
+- **Responsibilities**:
+  - Track query execution count to trigger automatic feedback prompts
+  - Display feedback prompts after 10 query executions
+  - Provide manual feedback command for Command Palette
+  - Respect user preferences (remind later, don't ask again)
+  - Link to GitHub Issues and Discussions for feedback submission
+- **Key Methods**:
+  - `trackQueryExecution(): Promise<void>` - Increments counter, shows prompt at threshold
+  - `showManualFeedbackPrompt(): Promise<void>` - Displays manual feedback dialog
+  - `resetFeedbackTracking(): Promise<void>` - Clears state (development only)
+  - `getUsageStats()` - Returns current tracking state (for debugging)
+- **Storage Strategy**:
+  - Uses VS Code's `context.globalState` for persistence across sessions
+  - Keys:
+    - `cassandraLens.queryExecutionCount` - Number of queries executed
+    - `cassandraLens.feedbackPromptShown` - Whether prompt was displayed
+    - `cassandraLens.feedbackDismissed` - User clicked "Don't Ask Again"
+  - **Privacy-first**: Only tracks counters and boolean flags, never query content or connection details
+- **Feedback Prompt Behavior**:
+  - **Automatic**: Appears after exactly 10 query executions (one-time)
+  - **Manual**: Available via `cassandra-lens.sendFeedback` command anytime
+  - **User Choices**:
+    - "Share Feedback" → Opens GitHub Discussions feedback category
+    - "Report Issue" → Opens GitHub Issues template chooser
+    - "Remind Me Later" → Resets counter, will ask again after 10 more queries
+    - "Don't Ask Again" → Permanently dismisses automatic prompts
+- **Feedback Destinations**:
+  - General feedback: `https://github.com/gnana997/cassandra-lens/discussions/new?category=feedback`
+  - Bug reports: `https://github.com/gnana997/cassandra-lens/issues/new?template=bug_report.md`
+  - Feature requests: `https://github.com/gnana997/cassandra-lens/issues/new?template=feature_request.md`
+  - Documentation: `https://github.com/gnana997/cassandra-lens#readme`
+- **Privacy Compliance**:
+  - ✅ Tracks: Query count, prompt state, user preference
+  - ❌ Never tracks: Query content, connection details, user identity
+  - ✅ All data stays local unless user clicks feedback links
 
 ## Future Utilities
 

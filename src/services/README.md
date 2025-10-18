@@ -149,10 +149,43 @@ const connectionTreeProvider = new ConnectionTreeProvider(
                       schema
 ```
 
+### ExecutionTimeTracker
+- **File**: `executionTimeTracker.ts`
+- **Purpose**: Tracks execution times for CQL statements and files in-memory for CodeLens display
+- **Responsibilities**:
+  - Record execution time, row count, and success status for individual statements
+  - Track file-level aggregated execution times
+  - Provide execution history for CodeLens time indicators
+  - Auto-cleanup old entries (max 100 per file using LRU strategy)
+- **Key Methods**:
+  - `recordExecution(uri, startLine, endLine, record): void` - Record statement execution
+  - `recordFileExecution(uri, executionTime): void` - Record file-level execution
+  - `getExecution(uri, startLine, endLine): ExecutionRecord | undefined` - Get statement record
+  - `getFileExecution(uri): number | undefined` - Get file execution time
+  - `clearFile(uri): void` - Clear all executions for a file
+- **Storage Strategy**:
+  - **In-memory only** - Data cleared on extension reload (not persisted)
+  - **Key format**: `${documentUri}:${startLine}-${endLine}` for statements
+  - **Auto-cleanup**: Removes oldest entries when file exceeds 100 executions
+  - **Singleton instance**: Exported as `executionTimeTracker` for shared access
+- **ExecutionRecord Interface**:
+  ```typescript
+  {
+    executionTime: number;  // Milliseconds
+    rowCount: number;       // Rows returned/affected
+    timestamp: Date;        // When executed
+    success: boolean;       // Success or failure
+  }
+  ```
+- **Use Cases**:
+  - CodeLens displays: "⏱ Last: 23ms (5 rows)"
+  - File-level displays: "⏱ Last run: 145ms total"
+  - Performance tracking during development
+  - Query optimization feedback
+
 ## Future Enhancements
 
 Future services may include:
-- **QueryExecutor** - Handle CQL query execution with result formatting
 - **TemplateService** - Manage query templates and snippets
 - **ExportService** - Export query results to CSV, JSON, etc.
 - **MetricsService** - Track and display cluster metrics

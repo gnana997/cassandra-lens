@@ -1,0 +1,103 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for CassandraLens
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please describe your idea in detail below.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight Checklist
+      description: Please ensure you've completed these steps before submitting
+      options:
+        - label: I have searched existing issues and discussions to avoid duplicates
+          required: true
+        - label: This feature would be useful to other CassandraLens users (not just my specific use case)
+          required: false
+
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Feature Description
+      description: A clear and concise description of the feature you'd like to see
+      placeholder: |
+        Example: Add support for exporting query results to CSV, JSON, or Excel formats.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-solved
+    attributes:
+      label: Problem It Solves
+      description: What problem does this feature solve? What workflow would it improve?
+      placeholder: |
+        Example: Currently, I have to manually copy query results to Excel for reporting. This feature would save significant time when preparing data for stakeholders.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: How do you envision this feature working?
+      placeholder: |
+        Example: Add a "Export Results" button in the query results panel with a dropdown to select format (CSV, JSON, Excel). Include options to export all pages or just the current page.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: feature-category
+    attributes:
+      label: Feature Category
+      description: What area of CassandraLens does this feature relate to?
+      options:
+        - Query Execution & Results
+        - Connection Management
+        - Schema Browsing & Exploration
+        - Code Editor & IntelliSense
+        - Performance & Monitoring
+        - Data Import/Export
+        - User Interface & UX
+        - Other (please specify below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: |
+        Example: I currently use the "Copy to Clipboard" feature and paste into Excel, but this is manual and doesn't preserve data types.
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to your workflow?
+      options:
+        - Nice to have - would be a minor improvement
+        - Moderate - would improve my workflow significantly
+        - High - blocking a critical workflow
+    validations:
+      required: false
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples from Other Tools
+      description: Are there similar features in other database tools (DataGrip, DBeaver, etc.) we should consider?
+      placeholder: |
+        Example: DBeaver has an export wizard with format options, column selection, and encoding settings.
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Screenshots, mockups, or any other relevant information
+      placeholder: |
+        You can drag and drop images here to include mockups or screenshots from other tools.

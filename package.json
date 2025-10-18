@@ -4,6 +4,15 @@
   "description": "Apache Cassandra database management and development tool for VS Code",
   "version": "0.1.0",
   "publisher": "gnana997",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gnana997/cassandra-lens.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gnana997/cassandra-lens/issues"
+  },
+  "homepage": "https://github.com/gnana997/cassandra-lens#readme",
+  "license": "MIT",
   "icon": "media/cassandra-lens.png",
   "galleryBanner": {
     "color": "#1287B1",
@@ -124,6 +133,11 @@
         "command": "cassandra-lens.newQuery",
         "title": "CassandraLens: New Query",
         "icon": "$(new-file)"
+      },
+      {
+        "command": "cassandra-lens.sendFeedback",
+        "title": "CassandraLens: Send Feedback",
+        "icon": "$(comment-discussion)"
       }
     ],
     "keybindings": [

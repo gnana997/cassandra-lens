@@ -139,9 +139,40 @@ Different tree items have different context menus based on their `contextValue`:
 - **table**: Browse Data, Describe Table, Copy Name, Refresh
 - **column-***: Copy Name, Copy Path
 
+### CqlCodeLensProvider
+- **File**: `cqlCodeLensProvider.ts`
+- **Purpose**: Provides inline "Run" buttons and connection indicators in CQL files using VS Code's CodeLens API
+- **Shows**: Clickable inline actions above CQL code in the editor
+- **Features**:
+  - **File-level "▶ Run All" button** - Executes entire file (or selection)
+  - **Active connection indicator** - Shows current connection (clickable to switch)
+  - **Multi-connection warning** - Alerts when file uses multiple @conn directives
+  - **Settings shortcut** - Quick access to CassandraLens configuration
+  - **Execution time display** - Shows last execution time from ExecutionTimeTracker (Phase 2)
+  - **Auto-refresh** - Updates when connection state changes
+- **Configuration Modes** (`cassandraLens.editor.codeLensMode`):
+  - **off** - No CodeLens displayed (keyboard shortcuts only)
+  - **minimal** - Run All button + connection indicator only
+  - **standard** (default) - Minimal + multi-connection warning
+  - **detailed** - Standard + per-statement Run buttons (Phase 2 feature)
+- **Reactive Updates**:
+  - Listens to ConnectionManager events: 'connected', 'disconnected', 'statusChanged'
+  - Fires `onDidChangeCodeLenses` event to refresh display automatically
+- **Implementation Details**:
+  - Implements VS Code's `vscode.CodeLensProvider` interface
+  - Parses CQL files for statement boundaries (semicolon-delimited)
+  - Detects `-- @conn ConnectionName` directives for connection switching
+  - Uses `executionTimeTracker` to show last execution time
+  - Positions CodeLens at top of file (line 0) for file-level actions
+- **Commands Triggered**:
+  - `cassandra-lens.executeQuery` - Run All button
+  - `cassandra-lens.switchConnection` - Connection indicator click
+  - `cassandra-lens.executeStatementAtLine` - Per-statement Run (detailed mode)
+- **Reference**: [VS Code CodeLens API](https://code.visualstudio.com/api/language-extensions/programmatic-language-features#codelens-show-actionable-context-information-within-source-code)
+
 ## Future Enhancements
 
 Future providers may include:
-- CQL completion provider for query autocomplete
-- CQL formatting provider for query beautification
-- Diagnostics provider for CQL syntax errors
+- **CQL Completion Provider** - Autocomplete for CQL keywords, keyspaces, tables, columns
+- **CQL Formatting Provider** - Pretty-print CQL with indentation and keyword casing
+- **CQL Diagnostics Provider** - Real-time syntax error highlighting

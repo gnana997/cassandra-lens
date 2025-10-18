@@ -21,6 +21,9 @@ import { QueryCommands } from './commands/queryCommands';
 // Import UI components
 import { ConnectionStatusBar } from './ui/statusBar';
 
+// Import utility services
+import { FeedbackManager } from './utils/feedbackManager';
+
 // Import providers
 import { ConnectionTreeProvider } from './providers/connectionTreeProvider';
 import { CqlCodeLensProvider } from './providers/cqlCodeLensProvider';
@@ -64,6 +67,12 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Create a separate client for testing connections (doesn't interfere with active connection)
   const testClient = new CassandraClient();
+
+  // ============================================================================
+  // Feedback Manager (User feedback collection)
+  // ============================================================================
+
+  const feedbackManager = new FeedbackManager(context);
 
   // ============================================================================
   // Step 2: Initialize Command Handlers
@@ -294,7 +303,13 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'cassandra-lens.executeQuery',
-      () => queryCommands.executeQuery()
+      async () => {
+        // Execute the query
+        await queryCommands.executeQuery();
+
+        // Track execution for feedback prompt
+        await feedbackManager.trackQueryExecution();
+      }
     )
   );
 
@@ -312,6 +327,24 @@ export function activate(context: vscode.ExtensionContext) {
       () => queryCommands.newQuery()
     )
   );
+
+  // Feedback Commands
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'cassandra-lens.sendFeedback',
+      () => feedbackManager.showManualFeedbackPrompt()
+    )
+  );
+
+  // Developer command to reset feedback tracking (for testing)
+  if (process.env.VSCODE_DEV_MODE) {
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        'cassandra-lens.resetFeedbackTracking',
+        () => feedbackManager.resetFeedbackTracking()
+      )
+    );
+  }
 
   // ============================================================================
   // Step 5: Auto-Connect to Last Used Connection (Optional)
