@@ -394,9 +394,9 @@ SELECT * FROM
       }
 
       // Check for @conn directive
-      const match = line.match(/^--\s*@conn\s+([a-zA-Z0-9_-]+)/i);
+      const match = line.match(/^--\s*@conn\s+(.+)$/i);
       if (match) {
-        return match[1];
+        return match[1].trim();
       }
     }
 

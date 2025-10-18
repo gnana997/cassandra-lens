@@ -3,7 +3,12 @@
   "displayName": "CassandraLens",
   "description": "Apache Cassandra database management and development tool for VS Code",
   "version": "0.1.0",
-  "publisher": "cassandra-lens",
+  "publisher": "gnana997",
+  "icon": "media/cassandra-lens.png",
+  "galleryBanner": {
+    "color": "#1287B1",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.105.0"
   },

@@ -63,8 +63,6 @@ export class CqlCodeLensProvider implements vscode.CodeLensProvider {
 
     const config = vscode.workspace.getConfiguration('cassandraLens.editor');
     const mode = config.get<string>('codeLensMode', 'standard');
-    const fileName = document.fileName.split(/[\\/]/).pop();
-    console.log(`[CQL CodeLens] Mode: "${mode}", File: "${fileName}"`);
 
     if (mode === 'off') {
       return [];
@@ -300,7 +298,6 @@ export class CqlCodeLensProvider implements vscode.CodeLensProvider {
   private getStatementLevelLenses(document: vscode.TextDocument): vscode.CodeLens[] {
     const lenses: vscode.CodeLens[] = [];
     const statements = this.parseStatementsWithLines(document);
-    console.log(`[CQL CodeLens] Creating lenses for ${statements.length} statements`);
 
     for (const statement of statements) {
       // Place CodeLens at the start of the CQL statement line
@@ -439,7 +436,6 @@ export class CqlCodeLensProvider implements vscode.CodeLensProvider {
         // Handle semicolon (statement terminator) - only if outside strings and comments
         if (char === ';' && !inString && blockCommentDepth === 0) {
           foundSemicolon = true;
-          console.log(`[CQL Parser] ; Semicolon found at line ${lineNum}, col ${i}`);
           break; // Stop processing this line
         }
       }
@@ -452,8 +448,7 @@ export class CqlCodeLensProvider implements vscode.CodeLensProvider {
         // Start of new statement detected
         inStatement = true;
         statementStartLine = lineNum;
-        cqlStartLine = lineNum; // Direct document line number - no offset calculations!
-        console.log(`[CQL Parser] → New statement started at line ${lineNum}: ${lineWithoutComments.substring(0, 40).replace(/\n/g, ' ')}...`);
+        cqlStartLine = lineNum; // Direct document line number
       }
 
       // Collect line if we're inside a statement
@@ -479,9 +474,6 @@ export class CqlCodeLensProvider implements vscode.CodeLensProvider {
             endLine: lineNum,
             cqlStartLine: cqlStartLine
           });
-          console.log(`[CQL Parser] ✓ Statement finalized at line ${lineNum}: ${trimmedStatement.substring(0, 40).replace(/\n/g, ' ')}...`);
-        } else {
-          console.log(`[CQL Parser] ✗ Statement skipped (invalid) at line ${lineNum}`);
         }
 
         // Reset state for next statement
@@ -491,11 +483,10 @@ export class CqlCodeLensProvider implements vscode.CodeLensProvider {
         cqlStartLine = -1;
       }
 
-      // CRITICAL FIX: Reset string state at end of each line
+      // Reset string state at end of each line
       // SQL/CQL strings cannot span multiple lines, so inString must be false at line boundaries
       // If we don't reset this, a mismatched quote will corrupt parsing of the entire rest of the file
       if (inString) {
-        console.log(`[CQL Parser] ⚠️  Line ${lineNum}: String state leaked (inString=true at end of line) - RESETTING`);
         inString = false;
         stringChar = '';
       }
@@ -520,12 +511,6 @@ export class CqlCodeLensProvider implements vscode.CodeLensProvider {
         });
       }
     }
-
-    console.log(`[CQL Parser] Found ${statements.length} statements`);
-    statements.forEach((s, i) => {
-      const preview = s.text.substring(0, 50).replace(/\n/g, ' ');
-      console.log(`  ${i + 1}. Line ${s.cqlStartLine}: ${preview}...`);
-    });
 
     return statements;
   }

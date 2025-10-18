@@ -325,7 +325,6 @@ export function activate(context: vscode.ExtensionContext) {
       const autoConnect = config.get<boolean>('connection.autoConnectOnStartup', true);
 
       if (!autoConnect) {
-        console.log('Auto-connect disabled by user configuration.');
         return;
       }
 
