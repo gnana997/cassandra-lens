@@ -7,18 +7,8 @@
 
 import { createRoot } from 'react-dom/client';
 import App from './App';
+// Import CSS for side effects; TypeScript declaration is required for '.css' files.
 import './styles.css';
-
-// Type declarations for globals injected by the webview HTML
-declare global {
-  interface Window {
-    vscodeApi: {
-      postMessage(message: any): void;
-      getState(): any;
-      setState(state: any): void;
-    };
-  }
-}
 
 // Get the root element
 const container = document.getElementById('root');

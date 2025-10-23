@@ -109,6 +109,29 @@ export interface SocketConfig {
 }
 
 /**
+ * Advanced connection configuration for special network scenarios.
+ */
+export interface AdvancedConfig {
+  /**
+   * Force all connections through the contact point address.
+   *
+   * **Use Case:** When connecting through a VPN, load balancer, or proxy where
+   * internal node IPs are not directly routable.
+   *
+   * **How it works:** The Cassandra driver normally discovers internal node IPs
+   * and connects directly to them. Enabling this option translates all discovered
+   * IPs back to the contact point, forcing traffic through your load balancer.
+   *
+   * **Example:** You connect via an AWS ELB, but the driver discovers internal
+   * IPs (172.x.x.x) that aren't accessible through your VPN. Enable this to
+   * force connections through the ELB hostname.
+   *
+   * @default false
+   */
+  useContactPointForAll?: boolean;
+}
+
+/**
  * Complete connection profile for a Cassandra cluster.
  *
  * This interface represents all information needed to establish and manage
@@ -196,6 +219,12 @@ export interface ConnectionProfile {
    * Uses driver defaults if not specified.
    */
   socket: SocketConfig;
+
+  /**
+   * Advanced connection configuration.
+   * Optional - only needed for special network scenarios like VPN or load balancers.
+   */
+  advanced?: AdvancedConfig;
 
   /**
    * Timestamp when this profile was created.

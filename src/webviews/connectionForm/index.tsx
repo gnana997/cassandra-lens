@@ -9,18 +9,6 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles.css';
 
-// Type declarations for globals injected by the webview HTML
-declare global {
-  interface Window {
-    vscodeApi: {
-      postMessage(message: any): void;
-      getState(): any;
-      setState(state: any): void;
-    };
-    initialProfile: any;
-  }
-}
-
 // Get the root element
 const container = document.getElementById('root');
 

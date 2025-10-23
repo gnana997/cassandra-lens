@@ -2,7 +2,7 @@
   "name": "cassandra-lens",
   "displayName": "CassandraLens",
   "description": "Apache Cassandra database management and development tool for VS Code",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "Gnana997",
   "repository": {
     "type": "git",
