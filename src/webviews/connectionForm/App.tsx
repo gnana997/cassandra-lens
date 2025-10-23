@@ -29,6 +29,9 @@ interface FormState {
     rejectUnauthorized?: boolean;
     caCertPath?: string;
   };
+  advanced?: {
+    useContactPointForAll?: boolean;
+  };
 }
 
 // Form validation errors
@@ -55,6 +58,7 @@ const App = () => {
     localDatacenter: 'datacenter1',
     auth: { enabled: false },
     ssl: { enabled: false, rejectUnauthorized: true },
+    advanced: { useContactPointForAll: false },
   });
 
   // Validation errors
@@ -83,6 +87,7 @@ const App = () => {
         keyspace: profile.keyspace,
         auth: profile.auth || { enabled: false },
         ssl: profile.ssl || { enabled: false, rejectUnauthorized: true },
+        advanced: profile.advanced || { useContactPointForAll: false },
       });
       setContactPointsInput((profile.contactPoints || ['']).join(', '));
     }
@@ -125,6 +130,7 @@ const App = () => {
             keyspace: profile.keyspace,
             auth: profile.auth || { enabled: false },
             ssl: profile.ssl || { enabled: false, rejectUnauthorized: true },
+            advanced: profile.advanced || { useContactPointForAll: false },
           });
           setContactPointsInput((profile.contactPoints || ['']).join(', '));
         }
@@ -432,6 +438,25 @@ const App = () => {
                 </div>
               </>
             )}
+
+            <div className="form-group" style={{marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--vscode-panel-border)'}}>
+              <h3 style={{marginBottom: '12px', fontSize: '14px'}}>Advanced Options</h3>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={form.advanced?.useContactPointForAll || false}
+                  onChange={(e) => setForm({
+                    ...form,
+                    advanced: { ...form.advanced, useContactPointForAll: e.target.checked }
+                  })}
+                />
+                Force all connections through contact point (VPN/Load Balancer mode)
+              </label>
+              <span className="help-text">
+                Enable this when connecting through a VPN or load balancer where internal node IPs are not directly accessible.
+                This prevents "ECONNRESET" errors by routing all traffic through your contact point hostname.
+              </span>
+            </div>
           </div>
         )}
 
@@ -501,6 +526,16 @@ const App = () => {
                 </>
               )}
             </div>
+
+            {form.advanced?.useContactPointForAll && (
+              <div className="review-section">
+                <h3>Advanced Options</h3>
+                <div className="review-item">
+                  <span className="review-label">VPN/Load Balancer Mode:</span>
+                  <span className="review-value">Enabled</span>
+                </div>
+              </div>
+            )}
 
             {testResult && (
               <div className={`test-result ${testResult.success ? 'success' : 'error'}`}>

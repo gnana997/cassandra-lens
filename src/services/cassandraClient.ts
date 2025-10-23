@@ -319,6 +319,28 @@ export class CassandraClient {
       };
     }
 
+    // Configure address translator for VPN/load balancer scenarios
+    if (profile.advanced?.useContactPointForAll) {
+      // Get the first contact point to use as the translation target
+      const contactPoint = profile.contactPoints[0];
+      const port = profile.port || 9042;
+
+      // Create a custom address translator that maps all discovered IPs
+      // back to the contact point address
+      // This forces all connections through the load balancer/VPN endpoint
+      const customTranslator = {
+        translate: (address: string, translatedPort: number, callback: (endPoint: string) => void) => {
+          // Always translate to the contact point, regardless of discovered IP
+          callback(`${contactPoint}:${port}`);
+        }
+      };
+
+      options.policies = {
+        ...options.policies,
+        addressResolution: customTranslator
+      };
+    }
+
     return options;
   }
 
